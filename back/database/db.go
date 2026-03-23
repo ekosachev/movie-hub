@@ -3,6 +3,7 @@ package database
 import (
 	"fmt"
 
+	"github.com/ekosachev/movie-hub/database/models"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -30,7 +31,13 @@ func Connect_to_db(
 		return nil, err
 	}
 
-	db.AutoMigrate()
+	db.AutoMigrate(
+		&models.Role{},
+		&models.User{},
+		&models.Cast{},
+		&models.Tag{},
+		&models.Movie{},
+	)
 
 	return db, nil
 }
