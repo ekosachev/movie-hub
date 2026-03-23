@@ -11,6 +11,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o main .
 
 FROM alpine:latest
 
+RUN apk --no-cache add tzdata
 RUN apk --no-cache add curl
 
 WORKDIR /root/
