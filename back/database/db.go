@@ -37,6 +37,7 @@ func Connect_to_db(
 		&models.Cast{},
 		&models.Tag{},
 		&models.Movie{},
+		&models.MovieCast{},
 	)
 
 	return db, nil

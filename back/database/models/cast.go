@@ -9,3 +9,9 @@ type Cast struct {
 	PhotoUrl  string
 	Movies    []*Movie `gorm:"many2many:movie_cast;"`
 }
+
+type MovieCast struct {
+	MovieID int `gorm:"primaryKey"`
+	CastID  int `gorm:"primaryKey"`
+	Role    string
+}
