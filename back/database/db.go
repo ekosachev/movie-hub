@@ -38,6 +38,10 @@ func Connect_to_db(
 		&models.Tag{},
 		&models.Movie{},
 		&models.MovieCast{},
+		&models.Collection{},
+		&models.Comment{},
+		&models.Rate{},
+		&models.Reaction{},
 	)
 
 	return db, nil
