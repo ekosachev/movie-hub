@@ -3,14 +3,14 @@ package services
 import (
 	"context"
 
-	"github.com/ekosachev/movie-hub/database"
+	"github.com/ekosachev/movie-hub/internal/repositories"
 )
 
 type BaseService[T any] struct {
-	Repo database.BaseRepository[T]
+	Repo repositories.BaseRepository[T]
 }
 
-func NewBaseService[T any](repo database.BaseRepository[T]) *BaseService[T] {
+func NewBaseService[T any](repo repositories.BaseRepository[T]) *BaseService[T] {
 	return &BaseService[T]{Repo: repo}
 }
 

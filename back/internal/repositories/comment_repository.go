@@ -1,9 +1,9 @@
-package database
+package repositories
 
 import (
 	"context"
 
-	"github.com/ekosachev/movie-hub/database/models"
+	"github.com/ekosachev/movie-hub/internal/models"
 	"gorm.io/gorm"
 )
 

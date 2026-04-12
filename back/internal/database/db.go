@@ -3,7 +3,7 @@ package database
 import (
 	"fmt"
 
-	"github.com/ekosachev/movie-hub/database/models"
+	"github.com/ekosachev/movie-hub/internal/models"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
