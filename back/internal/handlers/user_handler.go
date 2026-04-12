@@ -24,7 +24,11 @@ func NewUserHandler(service services.BaseService[models.User], logger slog.Logge
 }
 
 func (h *UserHandler) RegisterRoutes(router *gin.RouterGroup, path string) {
+	group := router.Group(path)
 
+	{
+		group.POST("/create", h.CreateUser)
+	}
 }
 
 func (h *UserHandler) CreateUser(c *gin.Context) {
