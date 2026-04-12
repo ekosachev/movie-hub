@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/ekosachev/movie-hub/database"
+	"github.com/ekosachev/movie-hub/internal/database"
 	"github.com/gin-gonic/gin"
 )
 
