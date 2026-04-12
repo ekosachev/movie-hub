@@ -12,11 +12,11 @@ import (
 )
 
 type UserHandler struct {
-	service services.UserService
-	logger  slog.Logger
+	service *services.UserService
+	logger  *slog.Logger
 }
 
-func NewUserHandler(service services.UserService, logger slog.Logger) *UserHandler {
+func NewUserHandler(service *services.UserService, logger *slog.Logger) *UserHandler {
 	return &UserHandler{
 		service: service,
 		logger:  logger,
