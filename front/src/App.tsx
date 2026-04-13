@@ -1,10 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { MovieCard } from './components/MovieCard';
 import { SearchBar } from './components/SearchBar';
 import { FilterPanel } from './components/FilterPanel';
 import { mockMovies } from './mockData';
+import { MovieDetailsModal } from './components/MovieDetailsModal';
 
 const App: React.FC = () => {
+  const [selectedMovieId, setSelectedMovieId] = useState<number | null>(null);
+  
+  const selectedMovie = mockMovies.find(m => m.id === selectedMovieId);
+
   return (
     <div className="min-h-screen bg-background text-white p-6 flex flex-col gap-6">
       <header className="bg-card rounded-2xl px-6 py-4 flex items-center justify-between shadow-[0_4px_30px_rgba(0,0,0,0.3)] border border-gray-700/50 sticky top-6 z-50">
@@ -37,11 +42,19 @@ const App: React.FC = () => {
                 tags={movie.tags}
                 rating={movie.rating}
                 posterUrl={movie.posterUrl}
+                onClick={setSelectedMovieId}
               />
             ))}
           </div>
         </main>
       </div>
+
+      {selectedMovie && (
+        <MovieDetailsModal 
+          movie={selectedMovie} 
+          onClose={() => setSelectedMovieId(null)} 
+        />
+      )}
     </div>
   );
 };
