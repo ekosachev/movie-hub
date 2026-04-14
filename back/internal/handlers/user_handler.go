@@ -35,7 +35,12 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 	var req dto.CreateUserRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, 
+			dto.APIResponse {
+				Success: false,
+				Error: err.Error(),
+			}
+	)
 		return
 	}
 
