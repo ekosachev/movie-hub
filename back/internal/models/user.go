@@ -7,5 +7,5 @@ type User struct {
 	Username     string
 	EmailAddress string
 	PasswordHash string
-	RoleID       uint
+	RoleID       *uint
 }
