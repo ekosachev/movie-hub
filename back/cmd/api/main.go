@@ -6,6 +6,9 @@ import (
 	"os"
 
 	"github.com/ekosachev/movie-hub/internal/database"
+	"github.com/ekosachev/movie-hub/internal/handlers"
+	"github.com/ekosachev/movie-hub/internal/repositories"
+	"github.com/ekosachev/movie-hub/internal/services"
 	"github.com/gin-gonic/gin"
 )
 
@@ -19,12 +22,22 @@ func main() {
 		})
 	})
 
-	_, err := database.Connect_to_db("postgres_db", "myuser", "mypassword", "mydb", "5432", "Europe/Moscow")
+	db, err := database.Connect_to_db("postgres_db", "myuser", "mypassword", "mydb", "5432", "Europe/Moscow")
 	if err != nil {
 		logger.Error("Could not connect to database", "error", err.Error())
 		return
 	}
 
 	logger.Info("Database connection successfull")
+
+	userRepo := repositories.NewUserRepository(db)
+	userService := services.NewUserService(userRepo)
+	userHandler := handlers.NewUserHandler(userService, logger)
+
+	group := router.Group("/api/v1")
+	{
+		userHandler.RegisterRoutes(group, "/user")
+	}
+
 	router.Run()
 }
