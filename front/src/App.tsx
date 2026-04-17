@@ -3,6 +3,7 @@ import { MovieCard } from './components/MovieCard';
 import { SearchBar } from './components/SearchBar';
 import { FilterPanel, FilterSettings } from './components/FilterPanel';
 import { mockMovies } from './mockData';
+import { MovieDetailsModal } from './components/MovieDetailsModal';
 
 const App: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -33,6 +34,9 @@ const App: React.FC = () => {
 
     return true;
   });
+  const [selectedMovieId, setSelectedMovieId] = useState<number | null>(null);
+  
+  const selectedMovie = mockMovies.find(m => m.id === selectedMovieId);
 
   return (
     <div className="min-h-screen bg-background text-white p-6 flex flex-col gap-6">
@@ -67,6 +71,7 @@ const App: React.FC = () => {
                 tags={movie.tags}
                 rating={movie.rating}
                 posterUrl={movie.posterUrl}
+                onClick={setSelectedMovieId}
               />
               ))
             ) : (
@@ -77,6 +82,13 @@ const App: React.FC = () => {
           </div>
         </main>
       </div>
+
+      {selectedMovie && (
+        <MovieDetailsModal 
+          movie={selectedMovie} 
+          onClose={() => setSelectedMovieId(null)} 
+        />
+      )}
     </div>
   );
 };
