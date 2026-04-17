@@ -29,7 +29,7 @@ export const FilterPanel: React.FC = () => {
 
       {/* Секция: Теги */}
       <div>
-        <h3 className="text-white font-bold text-lg mb-4 uppercase tracking-wider text-sm text-gray-400">Теги</h3>
+        <h3 className="font-bold mb-4 uppercase tracking-wider text-sm text-gray-400">Теги</h3>
 
         {/* Контейнер со скроллом и эффектом исчезания (градиентной маской) */}
         <div className="relative">
@@ -76,7 +76,7 @@ export const FilterPanel: React.FC = () => {
 
       {/* Секция: Год выпуска */}
       <div>
-        <h3 className="text-white font-bold text-lg mb-4 uppercase tracking-wider text-sm text-gray-400">Год выпуска</h3>
+        <h3 className="font-bold mb-4 uppercase tracking-wider text-sm text-gray-400">Год выпуска</h3>
         <div className="flex gap-2 items-center">
           <input
             type="number"
@@ -100,7 +100,7 @@ export const FilterPanel: React.FC = () => {
 
       {/* Секция: Рейтинг */}
       <div>
-        <h3 className="text-white font-bold text-lg mb-4 uppercase tracking-wider text-sm text-gray-400">Рейтинг (IMDB)</h3>
+        <h3 className="font-bold mb-4 uppercase tracking-wider text-sm text-gray-400">Рейтинг (IMDB)</h3>
         <div className="flex flex-wrap gap-2">
           {ratingOptions.map(opt => (
             <button
