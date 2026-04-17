@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Routes, Route, Link } from 'react-router-dom';
 import { SearchBar } from './components/SearchBar';
 import { HomePage } from './pages/HomePage';
+import { ProfilePage } from './pages/ProfilePage';
 
 const App: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -28,11 +29,7 @@ const App: React.FC = () => {
       <Routes>
         <Route path="/" element={<HomePage searchQuery={searchQuery} />} />
         {/* Будущая страница Личного Кабинета */}
-        <Route path="/profile" element={
-          <div className="flex-1 flex items-center justify-center text-4xl font-bold text-gray-500">
-            Здесь будет Личный Кабинет 👤
-          </div>
-        } />
+        <Route path="/profile" element={<ProfilePage />} />
       </Routes>
     </div>
   );
