@@ -1,7 +1,19 @@
 import React, { useState } from 'react';
 import { mockTags } from '../mockData';
 
-export const FilterPanel: React.FC = () => {
+export interface FilterSettings {
+  tags: string[];
+  rating: string;
+  yearFrom: number | string;
+  yearTo: number | string;
+}
+
+interface FilterPanelProps {
+  onApply?: (filters: FilterSettings) => void;
+  onReset?: () => void;
+}
+
+export const FilterPanel: React.FC<FilterPanelProps> = ({ onApply, onReset }) => {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [selectedRating, setSelectedRating] = useState<string>('Все');
 
@@ -22,6 +34,7 @@ export const FilterPanel: React.FC = () => {
     setSelectedRating('Все');
     setYearFrom(currentYear - 5);
     setYearTo(currentYear);
+    if (onReset) onReset();
   };
 
   return (
@@ -29,7 +42,7 @@ export const FilterPanel: React.FC = () => {
 
       {/* Секция: Теги */}
       <div>
-        <h3 className="text-white font-bold text-lg mb-4 uppercase tracking-wider text-sm text-gray-400">Теги</h3>
+        <h3 className="font-bold mb-4 uppercase tracking-wider text-sm text-gray-400">Теги</h3>
 
         {/* Контейнер со скроллом и эффектом исчезания (градиентной маской) */}
         <div className="relative">
@@ -62,7 +75,7 @@ export const FilterPanel: React.FC = () => {
 
         {/* Быстрая кнопка поиска только по тегам */}
         <button
-          onClick={() => console.log('Быстрый поиск по тегам:', selectedTags)}
+          onClick={() => onApply && onApply({ tags: selectedTags, rating: 'Все', yearFrom: '', yearTo: '' })}
           className="w-full mt-2 bg-[#2C2E33] hover:bg-accent/10 border border-transparent hover:border-accent/40 text-accent font-medium py-2.5 rounded-xl text-sm transition-all duration-300 flex items-center justify-center gap-2 group"
         >
           <svg className="w-4 h-4 text-accent/70 group-hover:text-accent transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -76,7 +89,7 @@ export const FilterPanel: React.FC = () => {
 
       {/* Секция: Год выпуска */}
       <div>
-        <h3 className="text-white font-bold text-lg mb-4 uppercase tracking-wider text-sm text-gray-400">Год выпуска</h3>
+        <h3 className="font-bold mb-4 uppercase tracking-wider text-sm text-gray-400">Год выпуска</h3>
         <div className="flex gap-2 items-center">
           <input
             type="number"
@@ -100,7 +113,7 @@ export const FilterPanel: React.FC = () => {
 
       {/* Секция: Рейтинг */}
       <div>
-        <h3 className="text-white font-bold text-lg mb-4 uppercase tracking-wider text-sm text-gray-400">Рейтинг (IMDB)</h3>
+        <h3 className="font-bold mb-4 uppercase tracking-wider text-sm text-gray-400">Рейтинг (IMDB)</h3>
         <div className="flex flex-wrap gap-2">
           {ratingOptions.map(opt => (
             <button
@@ -118,7 +131,10 @@ export const FilterPanel: React.FC = () => {
       </div>
 
       <div className="pt-4 flex flex-col gap-3">
-        <button className="w-full bg-accent hover:opacity-90 text-[#181A1C] font-extrabold uppercase tracking-wide py-3 rounded-xl transition-all duration-300 shadow-[0_0_20px_rgba(168,224,95,0.2)] hover:shadow-[0_0_25px_rgba(168,224,95,0.4)] hover:-translate-y-1">
+        <button 
+          onClick={() => onApply && onApply({ tags: selectedTags, rating: selectedRating, yearFrom, yearTo })}
+          className="w-full bg-accent hover:opacity-90 text-[#181A1C] font-extrabold uppercase tracking-wide py-3 rounded-xl transition-all duration-300 shadow-[0_0_20px_rgba(168,224,95,0.2)] hover:shadow-[0_0_25px_rgba(168,224,95,0.4)] hover:-translate-y-1"
+        >
           Применить
         </button>
         <button onClick={resetFilters} className="w-full text-gray-400 hover:text-white text-sm font-medium transition-colors py-2 rounded-xl hover:bg-[#2C2E33]">
