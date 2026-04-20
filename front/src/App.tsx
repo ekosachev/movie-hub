@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { MovieCard } from './components/MovieCard';
+import { Routes, Route, Link } from 'react-router-dom';
 import { SearchBar } from './components/SearchBar';
+import { HomePage } from './pages/HomePage';
+import { ProfilePage } from './pages/ProfilePage';
 import { FilterPanel, FilterSettings } from './components/FilterPanel';
 import { mockMovies } from './mockData';
 import { MovieDetailsModal } from './components/MovieDetailsModal';
@@ -40,14 +42,20 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background text-white p-6 flex flex-col gap-6">
+      {/* Шапка общая для всех страниц */}
       <header className="bg-card rounded-2xl px-6 py-4 flex items-center justify-between shadow-[0_4px_30px_rgba(0,0,0,0.3)] border border-gray-700/50 sticky top-6 z-50">
-        <div className="text-accent font-black text-2xl tracking-tighter">MOVIE<span className="text-white">HUB</span></div>
+        <Link to="/" className="text-accent font-black text-2xl tracking-tighter hover:opacity-80 transition-opacity">
+          MOVIE<span className="text-white">HUB</span>
+        </Link>
         <div className="flex-1 flex justify-center">
           <SearchBar value={searchQuery} onChange={setSearchQuery} />
         </div>
-        <div className="w-10 h-10 rounded-full bg-honey shadow-[0_0_15px_rgba(244,196,48,0.3)] flex items-center justify-center font-bold text-black border-2 border-honey/50 shrink-0 cursor-pointer hover:bg-white transition-colors">
+        <Link 
+          to="/profile" 
+          className="w-10 h-10 rounded-full bg-honey shadow-[0_0_15px_rgba(244,196,48,0.3)] flex items-center justify-center font-bold text-black border-2 border-honey/50 shrink-0 cursor-pointer hover:bg-white hover:scale-105 transition-all"
+        >
           ЛК
-        </div>
+        </Link>
       </header>
 
       <div className="flex-1 grid grid-cols-12 gap-6 relative">

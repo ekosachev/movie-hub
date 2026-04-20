@@ -134,3 +134,36 @@ export const mockMovies = [
     comments: []
   }
 ];
+
+export const currentUser = {
+  id: 1,
+  name: "Валерия Лоскутова",
+  role: "admin", // "user" | "content_manager" | "admin"
+  avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Valeria&backgroundColor=c0aede",
+  registrationDate: "2024-01-15",
+  lists: {
+    favorites: [1, 5, 7],
+    watched: [2, 4, 6],
+    watchlist: [3, 8]
+  }
+};
+
+// Тестовые пользовательские подборки
+export const mockCustomCollections = [
+  {
+    id: 101,
+    title: "Шедевры научной фантастики",
+    description: "Лучшее из того, что заставляет задуматься о будущем.",
+    isPublic: true,
+    rating: 4.8, // Рейтинг от других юзеров
+    movieIds: [1, 6, 7] // Дюна, Матрица, Интерстеллар
+  },
+  {
+    id: 102,
+    title: "Фильмы на вечер",
+    description: "Расслабиться после работы (Приватно)",
+    isPublic: false,
+    rating: 0,
+    movieIds: [3, 4]
+  }
+];
