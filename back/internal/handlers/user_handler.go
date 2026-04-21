@@ -10,9 +10,9 @@ type UserHandler struct {
 	Logger  *slog.Logger
 }
 
-func NewUserHandler(service services.UserService, logger *slog.Logger) *UserHandler {
+func NewUserHandler(service *services.UserService, logger *slog.Logger) *UserHandler {
 	return &UserHandler{
-		Service: &service,
+		Service: service,
 		Logger:  logger,
 	}
 }

@@ -36,7 +36,7 @@ func main() {
 
 	group := router.Group("/api/v1")
 	{
-		userHandler.RegisterRoutes(group, "/user")
+		userHandler.RegisterRoutes(group)
 	}
 
 	router.Run()
