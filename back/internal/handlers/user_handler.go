@@ -1,8 +1,10 @@
 package handlers
 
 import (
-	"github.com/ekosachev/movie-hub/internal/services"
 	"log/slog"
+
+	"github.com/ekosachev/movie-hub/internal/services"
+	"github.com/gin-gonic/gin"
 )
 
 type UserHandler struct {
@@ -14,5 +16,12 @@ func NewUserHandler(service *services.UserService, logger *slog.Logger) *UserHan
 	return &UserHandler{
 		Service: service,
 		Logger:  logger,
+	}
+}
+
+func (h *UserHandler) RegisterRoutes(router *gin.RouterGroup) {
+	_ = router.Group("/users")
+	{
+		// register routes here
 	}
 }
