@@ -10,4 +10,5 @@ type UserResponse struct {
 	ID       uint   `json:"id"`
 	Username string `json:"username"`
 	Email    string `json:"email"`
+	RoleID   *uint  `json:"role_id,omitempty"`
 }
