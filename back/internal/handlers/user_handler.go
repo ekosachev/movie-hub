@@ -3,11 +3,13 @@ package handlers
 import (
 	"log/slog"
 	"net/http"
+	"strconv"
 
 	"github.com/ekosachev/movie-hub/internal/dto"
 	"github.com/ekosachev/movie-hub/internal/models"
 	"github.com/ekosachev/movie-hub/internal/services"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 type UserHandler struct {
@@ -27,6 +29,7 @@ func (h *UserHandler) RegisterRoutes(router *gin.RouterGroup) {
 	{
 		// register routes here
 		group.POST("/", h.Register)
+		group.GET("/:id", h.GetByID)
 	}
 }
 
@@ -60,4 +63,39 @@ func (h *UserHandler) Register(c *gin.Context) {
 
 	h.Logger.Info("User registered successfully", slog.Uint64("user_id", uint64(user.ID)))
 	c.JSON(http.StatusCreated, dto.APIResponse{Success: true, Data: resp})
+}
+
+func (h *UserHandler) GetByID(c *gin.Context) {
+	idParam := c.Param("id")
+	id, err := strconv.Atoi(idParam)
+
+	if err != nil || id <= 0 {
+		sendError(c, http.StatusBadRequest, "Invalid user ID")
+		return
+	}
+
+	users, err := h.Service.Query(c, &models.User{Model: gorm.Model{ID: uint(id)}})
+
+	if err != nil {
+		h.Logger.Warn("User not found", slog.Int("id", id), slog.String("error", err.Error()))
+		sendError(c, http.StatusNotFound, "User not found")
+		return
+	}
+
+	if len(users) < 1 {
+		h.Logger.Warn("User not found", slog.Int("id", id))
+		sendError(c, http.StatusNotFound, "User not found")
+		return
+	}
+
+	user := users[0]
+
+	resp := dto.UserResponse{
+		ID:       user.ID,
+		Username: user.Username,
+		Email:    user.EmailAddress,
+		RoleID:   user.RoleID,
+	}
+
+	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: resp})
 }
