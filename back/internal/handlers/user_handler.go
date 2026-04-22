@@ -30,6 +30,7 @@ func (h *UserHandler) RegisterRoutes(router *gin.RouterGroup) {
 		// register routes here
 		group.POST("/", h.Register)
 		group.GET("/:id", h.GetByID)
+		group.PATCH("/:id", h.Update)
 	}
 }
 
@@ -97,5 +98,63 @@ func (h *UserHandler) GetByID(c *gin.Context) {
 		RoleID:   user.RoleID,
 	}
 
+	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: resp})
+}
+
+func (h *UserHandler) Update(c *gin.Context) {
+	idParam := c.Param("id")
+	id, err := strconv.Atoi(idParam)
+
+	if err != nil || id <= 0 {
+		sendError(c, http.StatusBadRequest, "Invalid user ID")
+		return
+	}
+
+	var req dto.UpdateUserRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.Logger.Warn("Invalid request payload for user update", slog.String("error", err.Error()))
+		sendError(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	users, err := h.Service.Query(c, &models.User{Model: gorm.Model{ID: uint(id)}})
+
+	if err != nil {
+		h.Logger.Error("Error qureying for user", slog.Int("id", id), slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Internal server error")
+		return
+	}
+
+	if len(users) < 1 {
+		h.Logger.Warn("User not found", slog.Int("id", id))
+		sendError(c, http.StatusNotFound, "User not found")
+		return
+	}
+
+	user := users[0]
+
+	if req.Username != nil {
+		user.Username = *req.Username
+	}
+
+	if req.Email != nil {
+		user.EmailAddress = *req.Email
+	}
+
+	if _, err := h.Service.Update(c, &models.User{Model: gorm.Model{ID: uint(id)}}, user); err != nil {
+		h.Logger.Error("Failed to update user", slog.Int("id", id), slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Could not update user")
+		return
+	}
+
+	resp := dto.UserResponse{
+		ID:       user.ID,
+		Username: user.Username,
+		Email:    user.EmailAddress,
+		RoleID:   user.RoleID,
+	}
+
+	h.Logger.Info("User updated", slog.Uint64("user_id", uint64(user.ID)))
 	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: resp})
 }
