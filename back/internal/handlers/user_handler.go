@@ -31,6 +31,7 @@ func (h *UserHandler) RegisterRoutes(router *gin.RouterGroup) {
 		group.POST("/", h.Register)
 		group.GET("/:id", h.GetByID)
 		group.PATCH("/:id", h.Update)
+		group.DELETE("/:id", h.Delete)
 	}
 }
 
@@ -157,4 +158,22 @@ func (h *UserHandler) Update(c *gin.Context) {
 
 	h.Logger.Info("User updated", slog.Uint64("user_id", uint64(user.ID)))
 	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: resp})
+}
+
+func (h *UserHandler) Delete(c *gin.Context) {
+	idParam := c.Param("id")
+	id, err := strconv.Atoi(idParam)
+	if err != nil || id <= 0 {
+		sendError(c, http.StatusBadRequest, "Invalid user ID")
+		return
+	}
+
+	if _, err := h.Service.Delete(c, &models.User{Model: gorm.Model{ID: uint(id)}}); err != nil {
+		h.Logger.Error("Failed to delete a user", slog.Int("id", id), slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Could not delete user")
+		return
+	}
+
+	h.Logger.Info("User deleted", slog.Int("user_id", id))
+	c.JSON(http.StatusOK, dto.APIResponse{Success: true})
 }
