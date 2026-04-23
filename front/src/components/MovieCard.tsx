@@ -7,8 +7,7 @@ export interface MovieCardProps {
   tags: string[];
   rating: number;
   posterUrl?: string;
-  onClick?: () => void;
-  onClick: (id: number) => void;
+  onClick?: (id: number) => void;
 }
 
 export const MovieCard: React.FC<MovieCardProps> = ({
@@ -21,11 +20,9 @@ export const MovieCard: React.FC<MovieCardProps> = ({
   onClick,
 }) => {
   return (
-    <div 
-      onClick={onClick}
-      className="bg-card rounded-2xl overflow-hidden shadow-lg flex flex-col group cursor-pointer hover:-translate-y-1 hover:shadow-accent/20 transition-all duration-300 relative border border-transparent hover:border-accent/30"
-      className="bg-card rounded-2xl overflow-hidden shadow-lg flex flex-col group cursor-pointer hover:-translate-y-1 hover:shadow-accent/20 transition-all duration-300 relative border border-transparent hover:border-accent/30"
+    <div
       onClick={() => onClick && onClick(id)}
+      className="bg-card rounded-2xl overflow-hidden shadow-lg flex flex-col group cursor-pointer hover:-translate-y-1 hover:shadow-accent/20 transition-all duration-300 relative border border-transparent hover:border-accent/30"
     >
       <div className="h-64 w-full relative bg-gray-800 border-b border-gray-700/50">
         {posterUrl ? (
