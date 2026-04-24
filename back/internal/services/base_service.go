@@ -22,6 +22,10 @@ func (s *BaseService[T]) Query(ctx context.Context, filter *T) ([]T, error) {
 	return s.Repo.Query(ctx, filter)
 }
 
+func (s *BaseService[T]) GetByID(ctx context.Context, id uint) (*T, error) {
+	return s.Repo.GetByID(ctx, id)
+}
+
 func (s *BaseService[T]) Update(ctx context.Context, filter *T, entity T) (rowsAffected int, err error) {
 	return s.Repo.Update(ctx, filter, entity)
 }

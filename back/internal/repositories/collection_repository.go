@@ -23,6 +23,20 @@ func (r *CollectionRepository) Query(ctx context.Context, filter *models.Collect
 	return gorm.G[models.Collection](r.db).Where(filter).Find(ctx)
 }
 
+func (r *CollectionRepository) GetByID(ctx context.Context, id uint) (*models.Collection, error) {
+	collections, err := r.Query(ctx, &models.Collection{Model: gorm.Model{ID: id}})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if len(collections) == 0 {
+		return nil, nil
+	}
+
+	return &collections[0], nil
+}
+
 func (r *CollectionRepository) Update(ctx context.Context, filter *models.Collection, obj models.Collection) (int, error) {
 	return gorm.G[models.Collection](r.db).Where(filter).Updates(ctx, obj)
 }

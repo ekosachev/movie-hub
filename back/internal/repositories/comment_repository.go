@@ -23,6 +23,20 @@ func (r *CommentRepository) Query(ctx context.Context, filter *models.Comment) (
 	return gorm.G[models.Comment](r.db).Where(filter).Find(ctx)
 }
 
+func (r *CommentRepository) GetByID(ctx context.Context, id uint) (*models.Comment, error) {
+	comments, err := r.Query(ctx, &models.Comment{Model: gorm.Model{ID: id}})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if len(comments) == 0 {
+		return nil, nil
+	}
+
+	return &comments[0], nil
+}
+
 func (r *CommentRepository) Update(ctx context.Context, filter *models.Comment, obj models.Comment) (int, error) {
 	return gorm.G[models.Comment](r.db).Where(filter).Updates(ctx, obj)
 }
