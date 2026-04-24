@@ -42,11 +42,16 @@ func main() {
 	commentService := services.NewCommentService(commentRepo)
 	commentHandler := handlers.NewCommentHandler(commentService, logger)
 
+	collectionRepo := repositories.NewCollectionRepository(db)
+	collectionService := services.NewCollectionService(collectionRepo)
+	collectionHandler := handlers.NewCollectionHandler(collectionService, logger)
+
 	group := router.Group("/api/v1")
 	{
 		userHandler.RegisterRoutes(group)
 		rateHandler.RegisterRoutes(group)
 		commentHandler.RegisterRoutes(group)
+		collectionHandler.RegisterRoutes(group)
 	}
 
 	router.Run()
