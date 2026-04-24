@@ -1,0 +1,174 @@
+package handlers
+
+import (
+	"log/slog"
+	"net/http"
+	"strconv"
+
+	"github.com/ekosachev/movie-hub/internal/dto"
+	"github.com/ekosachev/movie-hub/internal/models"
+	"github.com/ekosachev/movie-hub/internal/services"
+	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
+)
+
+type RateHandler struct {
+	Service *services.RateService
+	Logger  *slog.Logger
+}
+
+func NewRateHandler(service *services.RateService, logger *slog.Logger) *RateHandler {
+	return &RateHandler{
+		Service: service,
+		Logger:  logger,
+	}
+}
+
+func (h *RateHandler) RegisterRoutes(router *gin.RouterGroup) {
+	group := router.Group("/rates")
+	{
+		group.POST("/", h.Create)
+		group.GET("/:id", h.GetByID)
+		group.PATCH("/:id", h.Update)
+		group.DELETE("/:id", h.Delete)
+	}
+}
+
+func (h *RateHandler) Create(c *gin.Context) {
+	var req dto.CreateRateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.Logger.Warn("Invalid request payload for rate creation", slog.String("error", err.Error()))
+		sendError(c, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	rate := &models.Rate{
+		Plot:       req.Plot,
+		Perfomance: req.Perfomance,
+		Sfx:        req.Sfx,
+		UserID:     req.UserID,
+		MovieID:    req.MovieID,
+	}
+
+	if err := h.Service.Create(c, rate); err != nil {
+		h.Logger.Error("Failed to create rate", slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Could not create rate")
+		return
+	}
+
+	resp := dto.RateResponse{
+		ID:         rate.ID,
+		Plot:       rate.Plot,
+		Perfomance: rate.Perfomance,
+		Sfx:        rate.Sfx,
+		UserID:     rate.UserID,
+		MovieID:    rate.MovieID,
+	}
+
+	h.Logger.Info("Rate created", slog.Uint64("rate_id", uint64(rate.ID)))
+	c.JSON(http.StatusCreated, dto.APIResponse{Success: true, Data: resp})
+}
+
+func (h *RateHandler) GetByID(c *gin.Context) {
+	idParam := c.Param("id")
+	id, err := strconv.Atoi(idParam)
+	if err != nil {
+		sendError(c, http.StatusBadRequest, "Invalid ID format")
+		return
+	}
+
+	rates, err := h.Service.Query(c, &models.Rate{Model: gorm.Model{ID: uint(id)}})
+	if err != nil {
+		h.Logger.Error("Failed to fetch rate", slog.Int("id", id), slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Error fetching rate")
+		return
+	}
+
+	if len(rates) == 0 {
+		sendError(c, http.StatusNotFound, "Rate not found")
+		return
+	}
+	rate := rates[0]
+	resp := dto.RateResponse{
+		ID:         rate.ID,
+		Plot:       rate.Plot,
+		Perfomance: rate.Perfomance,
+		Sfx:        rate.Sfx,
+		UserID:     rate.UserID,
+		MovieID:    rate.MovieID,
+	}
+
+	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: resp})
+}
+
+func (h *RateHandler) Update(c *gin.Context) {
+	idParam := c.Param("id")
+	id, err := strconv.Atoi(idParam)
+	if err != nil {
+		sendError(c, http.StatusBadRequest, "Invalid ID format")
+		return
+	}
+	var req dto.UpdateRateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		sendError(c, http.StatusBadRequest, "Invalid update payload")
+		return
+	}
+
+	// Ищем существующую запись
+	existing, err := h.Service.Query(c, &models.Rate{Model: gorm.Model{ID: uint(id)}})
+	if err != nil || len(existing) == 0 {
+		sendError(c, http.StatusNotFound, "Rate not found")
+		return
+	}
+	rate := existing[0]
+	if req.Plot != nil {
+		rate.Plot = *req.Plot
+	}
+	if req.Perfomance != nil {
+		rate.Perfomance = *req.Perfomance
+	}
+	if req.Sfx != nil {
+		rate.Sfx = *req.Sfx
+	}
+
+	if _, err := h.Service.Update(c, &models.Rate{Model: gorm.Model{ID: uint(id)}}, rate); err != nil {
+		h.Logger.Error("Failed to update rate", slog.Int("id", id), slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Could not update rate")
+		return
+	}
+
+	resp := dto.RateResponse{
+		ID:         rate.ID,
+		Plot:       rate.Plot,
+		Perfomance: rate.Perfomance,
+		Sfx:        rate.Sfx,
+		UserID:     rate.UserID,
+		MovieID:    rate.MovieID,
+	}
+
+	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: resp})
+}
+
+func (h *RateHandler) Delete(c *gin.Context) {
+	idParam := c.Param("id")
+	id, err := strconv.Atoi(idParam)
+	if err != nil {
+		sendError(c, http.StatusBadRequest, "Invalid ID format")
+		return
+	}
+
+	rows, err := h.Service.Delete(c, &models.Rate{Model: gorm.Model{ID: uint(id)}})
+	if err != nil {
+		h.Logger.Error("Failed to delete rate", slog.Int("id", id), slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Could not delete rate")
+		return
+	}
+
+	if rows == 0 {
+		sendError(c, http.StatusNotFound, "Rate not found")
+		return
+	}
+
+	h.Logger.Info("Rate deleted", slog.Int("id", id))
+	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: "Rate deleted successfully"})
+}
