@@ -23,6 +23,20 @@ func (r *RoleRepository) Query(ctx context.Context, filter *models.Role) ([]mode
 	return gorm.G[models.Role](r.db).Where(filter).Find(ctx)
 }
 
+func (r *RoleRepository) GetByID(ctx context.Context, id uint) (*models.Role, error) {
+	roles, err := r.Query(ctx, &models.Role{Model: gorm.Model{ID: id}})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if len(roles) == 0 {
+		return nil, nil
+	}
+
+	return &roles[0], nil
+}
+
 func (r *RoleRepository) Update(ctx context.Context, filter *models.Role, obj models.Role) (int, error) {
 	return gorm.G[models.Role](r.db).Where(filter).Updates(ctx, obj)
 }

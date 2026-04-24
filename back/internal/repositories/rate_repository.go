@@ -23,6 +23,20 @@ func (r *RateRepository) Query(ctx context.Context, filter *models.Rate) ([]mode
 	return gorm.G[models.Rate](r.db).Where(filter).Find(ctx)
 }
 
+func (r *RateRepository) GetByID(ctx context.Context, id uint) (*models.Rate, error) {
+	rates, err := r.Query(ctx, &models.Rate{Model: gorm.Model{ID: id}})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if len(rates) == 0 {
+		return nil, nil
+	}
+
+	return &rates[0], nil
+}
+
 func (r *RateRepository) Update(ctx context.Context, filter *models.Rate, obj models.Rate) (int, error) {
 	return gorm.G[models.Rate](r.db).Where(filter).Updates(ctx, obj)
 }

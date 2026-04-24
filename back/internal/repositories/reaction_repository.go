@@ -23,6 +23,20 @@ func (r *ReactionRepository) Query(ctx context.Context, filter *models.Reaction)
 	return gorm.G[models.Reaction](r.db).Where(filter).Find(ctx)
 }
 
+func (r *ReactionRepository) GetByID(ctx context.Context, id uint) (*models.Reaction, error) {
+	reactions, err := r.Query(ctx, &models.Reaction{Model: gorm.Model{ID: id}})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if len(reactions) == 0 {
+		return nil, nil
+	}
+
+	return &reactions[0], nil
+}
+
 func (r *ReactionRepository) Update(ctx context.Context, filter *models.Reaction, obj models.Reaction) (int, error) {
 	return gorm.G[models.Reaction](r.db).Where(filter).Updates(ctx, obj)
 }
