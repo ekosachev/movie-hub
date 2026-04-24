@@ -76,21 +76,19 @@ func (h *UserHandler) GetByID(c *gin.Context) {
 		return
 	}
 
-	users, err := h.Service.Query(c, &models.User{Model: gorm.Model{ID: uint(id)}})
+	user, err := h.Service.GetByID(c, uint(id))
 
 	if err != nil {
-		h.Logger.Warn("User not found", slog.Int("id", id), slog.String("error", err.Error()))
-		sendError(c, http.StatusNotFound, "User not found")
+		h.Logger.Error("Failed to get user by id", slog.Int("id", id), slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Could not get user")
 		return
 	}
 
-	if len(users) < 1 {
+	if user == nil {
 		h.Logger.Warn("User not found", slog.Int("id", id))
 		sendError(c, http.StatusNotFound, "User not found")
 		return
 	}
-
-	user := users[0]
 
 	resp := dto.UserResponse{
 		ID:       user.ID,
@@ -119,21 +117,19 @@ func (h *UserHandler) Update(c *gin.Context) {
 		return
 	}
 
-	users, err := h.Service.Query(c, &models.User{Model: gorm.Model{ID: uint(id)}})
+	user, err := h.Service.GetByID(c, uint(id))
 
 	if err != nil {
-		h.Logger.Error("Error qureying for user", slog.Int("id", id), slog.String("error", err.Error()))
+		h.Logger.Error("Failed to get user by id", slog.Int("id", id), slog.String("error", err.Error()))
 		sendError(c, http.StatusInternalServerError, "Internal server error")
 		return
 	}
 
-	if len(users) < 1 {
+	if user == nil {
 		h.Logger.Warn("User not found", slog.Int("id", id))
 		sendError(c, http.StatusNotFound, "User not found")
 		return
 	}
-
-	user := users[0]
 
 	if req.Username != nil {
 		user.Username = *req.Username
