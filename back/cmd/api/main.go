@@ -38,10 +38,15 @@ func main() {
 	rateService := services.NewRateService(rateRepo)
 	rateHandler := handlers.NewRateHandler(rateService, logger)
 
+	commentRepo := repositories.NewCommentRepository(db)
+	commentService := services.NewCommentService(commentRepo)
+	commentHandler := handlers.NewCommentHandler(commentService, logger)
+
 	group := router.Group("/api/v1")
 	{
 		userHandler.RegisterRoutes(group)
 		rateHandler.RegisterRoutes(group)
+		commentHandler.RegisterRoutes(group)
 	}
 
 	router.Run()
