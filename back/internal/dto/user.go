@@ -17,3 +17,12 @@ type UserResponse struct {
 	Email    string `json:"email"`
 	RoleID   *uint  `json:"role_id,omitempty"`
 }
+
+type LoginRequest struct {
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required,min=8"`
+}
+
+type LoginResponse struct {
+	Token string `json:"token"`
+}
