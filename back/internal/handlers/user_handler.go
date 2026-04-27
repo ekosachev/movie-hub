@@ -139,7 +139,7 @@ func (h *UserHandler) Update(c *gin.Context) {
 		user.EmailAddress = *req.Email
 	}
 
-	if _, err := h.Service.Update(c, &models.User{Model: gorm.Model{ID: uint(id)}}, user); err != nil {
+	if _, err := h.Service.Update(c, &models.User{Model: gorm.Model{ID: uint(id)}}, *user); err != nil {
 		h.Logger.Error("Failed to update user", slog.Int("id", id), slog.String("error", err.Error()))
 		sendError(c, http.StatusInternalServerError, "Could not update user")
 		return
