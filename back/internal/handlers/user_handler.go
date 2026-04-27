@@ -32,7 +32,6 @@ func (h *UserHandler) RegisterRoutes(router *gin.RouterGroup) {
 		group.GET("/:id", h.GetByID)
 		group.PATCH("/:id", h.Update)
 		group.DELETE("/:id", h.Delete)
-		group.POST("/login", h.Login)
 	}
 }
 
@@ -173,27 +172,4 @@ func (h *UserHandler) Delete(c *gin.Context) {
 
 	h.Logger.Info("User deleted", slog.Int("user_id", id))
 	c.JSON(http.StatusOK, dto.APIResponse{Success: true})
-}
-
-func (h *UserHandler) Login(c *gin.Context) {
-	var req dto.LoginRequest
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		sendError(c, http.StatusBadRequest, err.Error())
-	}
-
-	token, err := h.Service.Login(c, req.Email, req.Password)
-
-	if err != nil {
-		sendError(c, http.StatusInternalServerError, "Internal Server Error")
-		h.Logger.Error("Failed to authenticate user", slog.String("error", err.Error()))
-		return
-	}
-
-	if token == "" {
-		sendError(c, http.StatusUnauthorized, "Incorrect email or password")
-		return
-	}
-
-	c.JSON(http.StatusOK, dto.LoginResponse{Token: token})
 }
