@@ -14,6 +14,13 @@ type AuthService struct {
 	RoleRepo *repositories.RoleRepository
 }
 
+func NewAuthService(userRepo repositories.UserRepository, roleRepo repositories.RoleRepository) *AuthService {
+	return &AuthService{
+		UserRepo: &userRepo,
+		RoleRepo: &roleRepo,
+	}
+}
+
 func (s *AuthService) Login(ctx context.Context, email string, password string) (string, error) {
 	users, err := s.UserRepo.Query(ctx, &models.User{EmailAddress: email})
 

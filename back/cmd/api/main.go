@@ -46,12 +46,16 @@ func main() {
 	collectionService := services.NewCollectionService(collectionRepo)
 	collectionHandler := handlers.NewCollectionHandler(collectionService, logger)
 
+	authService := services.NewAuthService(*userRepo, *repositories.NewRoleRepository(db))
+	authHandler := handlers.NewAuthHandler(authService, logger)
+
 	group := router.Group("/api/v1")
 	{
 		userHandler.RegisterRoutes(group)
 		rateHandler.RegisterRoutes(group)
 		commentHandler.RegisterRoutes(group)
 		collectionHandler.RegisterRoutes(group)
+		authHandler.RegisterRoutes(group)
 	}
 
 	router.Run()
