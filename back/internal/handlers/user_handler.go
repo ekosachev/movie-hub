@@ -182,5 +182,18 @@ func (h *UserHandler) Login(c *gin.Context) {
 		sendError(c, http.StatusBadRequest, err.Error())
 	}
 
-	c.JSON(http.StatusOK, dto.LoginResponse{Token: ""})
+	token, err := h.Service.Login(c, req.Email, req.Password)
+
+	if err != nil {
+		sendError(c, http.StatusInternalServerError, "Internal Server Error")
+		h.Logger.Error("Failed to authenticate user", slog.String("error", err.Error()))
+		return
+	}
+
+	if token == "" {
+		sendError(c, http.StatusUnauthorized, "Incorrect email or password")
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.LoginResponse{Token: token})
 }
