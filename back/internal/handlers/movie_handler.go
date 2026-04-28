@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ekosachev/movie-hub/internal/dto"
+	"github.com/ekosachev/movie-hub/internal/middleware"
 	"github.com/ekosachev/movie-hub/internal/models"
 	"github.com/ekosachev/movie-hub/internal/services"
 	"github.com/gin-gonic/gin"
@@ -28,11 +29,14 @@ func NewMovieHandler(service *services.MovieService, logger *slog.Logger) *Movie
 func (h *MovieHanlder) RegisterRoutes(router *gin.RouterGroup) {
 	group := router.Group("/movies")
 	{
-		// register routes here
-		group.POST("/", h.Create)
 		group.GET("/:id", h.GetByID)
-		group.PATCH("/:id", h.Update)
-		group.DELETE("/:id", h.Delete)
+
+		protectedGroup := group.Group("/").Use(middleware.AuthMiddleware())
+		{
+			protectedGroup.POST("/", h.Create)
+			protectedGroup.PATCH("/:id", h.Update)
+			protectedGroup.DELETE("/:id", h.Delete)
+		}
 	}
 }
 

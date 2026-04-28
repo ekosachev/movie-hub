@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/ekosachev/movie-hub/internal/dto"
+	"github.com/ekosachev/movie-hub/internal/middleware"
 	"github.com/ekosachev/movie-hub/internal/models"
 	"github.com/ekosachev/movie-hub/internal/services"
 	"github.com/gin-gonic/gin"
@@ -28,10 +29,14 @@ func (h *TagHandler) RegisterRoutes(router *gin.RouterGroup) {
 	group := router.Group("/tags")
 	{
 		// register routes here
-		group.POST("/", h.Create)
 		group.GET("/:id", h.GetByID)
-		group.PATCH("/:id", h.Update)
-		group.DELETE("/:id", h.Delete)
+
+		protectedGroup := group.Group("/").Use(middleware.AuthMiddleware())
+		{
+			protectedGroup.POST("/", h.Create)
+			protectedGroup.PATCH("/:id", h.Update)
+			protectedGroup.DELETE("/:id", h.Delete)
+		}
 	}
 }
 

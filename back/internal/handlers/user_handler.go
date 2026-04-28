@@ -30,9 +30,10 @@ func (h *UserHandler) RegisterRoutes(router *gin.RouterGroup) {
 	{
 		// register routes here
 		group.POST("/", h.Register)
+		group.GET("/:id", h.GetByID)
+
 		protectedGroup := group.Group("/").Use(middleware.AuthMiddleware())
 		{
-			protectedGroup.GET("/:id", h.GetByID)
 			protectedGroup.PATCH("/:id", h.Update)
 			protectedGroup.DELETE("/:id", h.Delete)
 		}
