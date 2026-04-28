@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/ekosachev/movie-hub/internal/dto"
+	"github.com/ekosachev/movie-hub/internal/middleware"
 	"github.com/ekosachev/movie-hub/internal/models"
 	"github.com/ekosachev/movie-hub/internal/services"
 	"github.com/gin-gonic/gin"
@@ -29,9 +30,12 @@ func (h *UserHandler) RegisterRoutes(router *gin.RouterGroup) {
 	{
 		// register routes here
 		group.POST("/", h.Register)
-		group.GET("/:id", h.GetByID)
-		group.PATCH("/:id", h.Update)
-		group.DELETE("/:id", h.Delete)
+		protectedGroup := group.Group("/").Use(middleware.AuthMiddleware())
+		{
+			protectedGroup.GET("/:id", h.GetByID)
+			protectedGroup.PATCH("/:id", h.Update)
+			protectedGroup.DELETE("/:id", h.Delete)
+		}
 	}
 }
 
