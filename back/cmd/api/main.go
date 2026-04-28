@@ -50,6 +50,10 @@ func main() {
 	roleService := services.NewRoleService(roleRepo)
 	roleHanlder := handlers.NewRoleHandler(roleService, logger)
 
+	movieRepo := repositories.NewMovieRepository(db)
+	movieService := services.NewMovieService(movieRepo)
+	movieHandler := handlers.NewMovieHandler(movieService, logger)
+
 	authService := services.NewAuthService(*userRepo, *roleRepo)
 	authHandler := handlers.NewAuthHandler(authService, logger)
 
@@ -61,6 +65,7 @@ func main() {
 		collectionHandler.RegisterRoutes(group)
 		authHandler.RegisterRoutes(group)
 		roleHanlder.RegisterRoutes(group)
+		movieHandler.RegisterRoutes(group)
 	}
 
 	router.Run()

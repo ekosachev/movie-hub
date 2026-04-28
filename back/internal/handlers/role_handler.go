@@ -25,7 +25,7 @@ func NewRoleHandler(service *services.RoleService, logger *slog.Logger) *RoleHan
 }
 
 func (h *RoleHandler) RegisterRoutes(router *gin.RouterGroup) {
-	group := router.Group("/users")
+	group := router.Group("/roles")
 	{
 		// register routes here
 		group.POST("/", h.Create)
