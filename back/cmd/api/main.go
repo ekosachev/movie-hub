@@ -46,7 +46,19 @@ func main() {
 	collectionService := services.NewCollectionService(collectionRepo)
 	collectionHandler := handlers.NewCollectionHandler(collectionService, logger)
 
-	authService := services.NewAuthService(*userRepo, *repositories.NewRoleRepository(db))
+	roleRepo := repositories.NewRoleRepository(db)
+	roleService := services.NewRoleService(roleRepo)
+	roleHanlder := handlers.NewRoleHandler(roleService, logger)
+
+	movieRepo := repositories.NewMovieRepository(db)
+	movieService := services.NewMovieService(movieRepo)
+	movieHandler := handlers.NewMovieHandler(movieService, logger)
+
+	tagRepo := repositories.NewTagRepository(db)
+	tagService := services.NewTagService(tagRepo)
+	tagHandler := handlers.NewTagHandler(tagService, logger)
+
+	authService := services.NewAuthService(*userRepo, *roleRepo)
 	authHandler := handlers.NewAuthHandler(authService, logger)
 
 	group := router.Group("/api/v1")
@@ -56,6 +68,9 @@ func main() {
 		commentHandler.RegisterRoutes(group)
 		collectionHandler.RegisterRoutes(group)
 		authHandler.RegisterRoutes(group)
+		roleHanlder.RegisterRoutes(group)
+		movieHandler.RegisterRoutes(group)
+		tagHandler.RegisterRoutes(group)
 	}
 
 	router.Run()

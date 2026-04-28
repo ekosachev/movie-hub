@@ -1,0 +1,179 @@
+package handlers
+
+import (
+	"log/slog"
+	"net/http"
+	"strconv"
+
+	"github.com/ekosachev/movie-hub/internal/dto"
+	"github.com/ekosachev/movie-hub/internal/models"
+	"github.com/ekosachev/movie-hub/internal/services"
+	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
+)
+
+type RoleHandler struct {
+	Service *services.RoleService
+	Logger  *slog.Logger
+}
+
+func NewRoleHandler(service *services.RoleService, logger *slog.Logger) *RoleHandler {
+	return &RoleHandler{
+		Service: service,
+		Logger:  logger,
+	}
+}
+
+func (h *RoleHandler) RegisterRoutes(router *gin.RouterGroup) {
+	group := router.Group("/roles")
+	{
+		// register routes here
+		group.POST("/", h.Create)
+		group.GET("/:id", h.GetByID)
+		group.PATCH("/:id", h.Update)
+		group.DELETE("/:id", h.Delete)
+	}
+}
+
+func (h *RoleHandler) Create(c *gin.Context) {
+	var req dto.CreateRoleRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.Logger.Warn("Invalid request payload for creating a role", slog.String("error", err.Error()))
+		sendError(c, http.StatusBadRequest, "Invalid data format: "+err.Error())
+		return
+	}
+
+	role := &models.Role{
+		CanCreateMovies:   req.CanCreateMovies,
+		CanBanUsers:       req.CanBanUsers,
+		CanRemoveComments: req.CanRemoveComments,
+	}
+
+	if err := h.Service.Create(c, role); err != nil {
+		h.Logger.Error("Failed to create role", slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Could not create role")
+		return
+	}
+
+	resp := dto.RoleResponse{
+		ID:                role.ID,
+		CanCreateMovies:   role.CanCreateMovies,
+		CanRemoveComments: role.CanRemoveComments,
+		CanBanUsers:       role.CanBanUsers,
+	}
+
+	h.Logger.Info("Role created successfully", slog.Uint64("role_id", uint64(role.ID)))
+	c.JSON(http.StatusCreated, dto.APIResponse{Success: true, Data: resp})
+}
+
+func (h *RoleHandler) GetByID(c *gin.Context) {
+	idParam := c.Param("id")
+	id, err := strconv.Atoi(idParam)
+
+	if err != nil || id <= 0 {
+		sendError(c, http.StatusBadRequest, "Invalid role ID")
+		return
+	}
+
+	role, err := h.Service.GetByID(c, uint(id))
+
+	if err != nil {
+		h.Logger.Error("Failed to get role by id", slog.Int("id", id), slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Could not get role")
+		return
+	}
+
+	if role == nil {
+		h.Logger.Warn("Role not found", slog.Int("id", id))
+		sendError(c, http.StatusNotFound, "Role not found")
+		return
+	}
+
+	resp := dto.RoleResponse{
+		ID:                role.ID,
+		CanBanUsers:       role.CanBanUsers,
+		CanCreateMovies:   role.CanCreateMovies,
+		CanRemoveComments: role.CanRemoveComments,
+	}
+
+	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: resp})
+}
+
+func (h *RoleHandler) Update(c *gin.Context) {
+	idParam := c.Param("id")
+	id, err := strconv.Atoi(idParam)
+
+	if err != nil || id <= 0 {
+		sendError(c, http.StatusBadRequest, "Invalid role ID")
+		return
+	}
+
+	var req dto.UpdateRoleRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.Logger.Warn("Invalid request payload for role update", slog.String("error", err.Error()))
+		sendError(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	role, err := h.Service.GetByID(c, uint(id))
+
+	if err != nil {
+		h.Logger.Error("Failed to get role by id", slog.Int("id", id), slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Internal server error")
+		return
+	}
+
+	if role == nil {
+		h.Logger.Warn("Role not found", slog.Int("id", id))
+		sendError(c, http.StatusNotFound, "Role not found")
+		return
+	}
+
+	if req.CanBanUsers != nil {
+		role.CanBanUsers = *req.CanBanUsers
+	}
+
+	if req.CanCreateMovies != nil {
+		role.CanCreateMovies = *req.CanCreateMovies
+	}
+
+	if req.CanRemoveComments != nil {
+		role.CanRemoveComments = *req.CanRemoveComments
+	}
+
+	if _, err := h.Service.Update(c, &models.Role{Model: gorm.Model{ID: uint(id)}}, *role); err != nil {
+		h.Logger.Error("Failed to update role", slog.Int("id", id), slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Could not update role")
+		return
+	}
+
+	resp := dto.RoleResponse{
+		ID:                role.ID,
+		CanRemoveComments: role.CanRemoveComments,
+		CanCreateMovies:   role.CanCreateMovies,
+		CanBanUsers:       role.CanBanUsers,
+	}
+
+	h.Logger.Info("Role updated", slog.Uint64("role_id", uint64(role.ID)))
+	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: resp})
+}
+
+func (h *RoleHandler) Delete(c *gin.Context) {
+	idParam := c.Param("id")
+	id, err := strconv.Atoi(idParam)
+	if err != nil || id <= 0 {
+		sendError(c, http.StatusBadRequest, "Invalid role ID")
+		return
+	}
+
+	if _, err := h.Service.Delete(c, &models.Role{Model: gorm.Model{ID: uint(id)}}); err != nil {
+		h.Logger.Error("Failed to delete a role", slog.Int("id", id), slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Could not delete user")
+		return
+	}
+
+	h.Logger.Info("Role deleted", slog.Int("user_id", id))
+	c.JSON(http.StatusOK, dto.APIResponse{Success: true})
+}

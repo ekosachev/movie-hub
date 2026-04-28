@@ -1,0 +1,192 @@
+package handlers
+
+import (
+	"log/slog"
+	"net/http"
+	"strconv"
+	"time"
+
+	"github.com/ekosachev/movie-hub/internal/dto"
+	"github.com/ekosachev/movie-hub/internal/models"
+	"github.com/ekosachev/movie-hub/internal/services"
+	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
+)
+
+type MovieHanlder struct {
+	Service *services.MovieService
+	Logger  *slog.Logger
+}
+
+func NewMovieHandler(service *services.MovieService, logger *slog.Logger) *MovieHanlder {
+	return &MovieHanlder{
+		Service: service,
+		Logger:  logger,
+	}
+}
+
+func (h *MovieHanlder) RegisterRoutes(router *gin.RouterGroup) {
+	group := router.Group("/movies")
+	{
+		// register routes here
+		group.POST("/", h.Create)
+		group.GET("/:id", h.GetByID)
+		group.PATCH("/:id", h.Update)
+		group.DELETE("/:id", h.Delete)
+	}
+}
+
+func (h *MovieHanlder) Create(c *gin.Context) {
+	var req dto.CreateMovieRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.Logger.Warn("Invalid request payload for creating a movie", slog.String("error", err.Error()))
+		sendError(c, http.StatusBadRequest, "Invalid data format: "+err.Error())
+		return
+	}
+
+	releaseDate, err := time.Parse(time.DateTime, req.ReleaseDate)
+
+	if err != nil {
+		sendError(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	movie := &models.Movie{
+		Title:       req.Title,
+		Description: req.Description,
+		ReleaseDate: releaseDate,
+	}
+
+	if err := h.Service.Create(c, movie); err != nil {
+		h.Logger.Error("Failed to create movie", slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Could not create role")
+		return
+	}
+
+	resp := dto.MovieResponse{
+		ID:          movie.ID,
+		Title:       movie.Title,
+		Description: movie.Description,
+		ReleaseDate: movie.ReleaseDate.Format(time.DateTime),
+	}
+
+	h.Logger.Info("Movie created successfully", slog.Uint64("movie_id", uint64(movie.ID)))
+	c.JSON(http.StatusCreated, dto.APIResponse{Success: true, Data: resp})
+}
+
+func (h *MovieHanlder) GetByID(c *gin.Context) {
+	idParam := c.Param("id")
+	id, err := strconv.Atoi(idParam)
+
+	if err != nil || id <= 0 {
+		sendError(c, http.StatusBadRequest, "Invalid movie ID")
+		return
+	}
+
+	movie, err := h.Service.GetByID(c, uint(id))
+
+	if err != nil {
+		h.Logger.Error("Failed to movie role by id", slog.Int("id", id), slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Could not get movie")
+		return
+	}
+
+	if movie == nil {
+		h.Logger.Warn("Movie not found", slog.Int("id", id))
+		sendError(c, http.StatusNotFound, "Movie not found")
+		return
+	}
+
+	resp := dto.MovieResponse{
+		ID:          movie.ID,
+		Title:       movie.Title,
+		Description: movie.Description,
+		ReleaseDate: movie.ReleaseDate.Format(time.DateTime),
+	}
+
+	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: resp})
+}
+
+func (h *MovieHanlder) Update(c *gin.Context) {
+	idParam := c.Param("id")
+	id, err := strconv.Atoi(idParam)
+
+	if err != nil || id <= 0 {
+		sendError(c, http.StatusBadRequest, "Invalid movie ID")
+		return
+	}
+
+	var req dto.UpdateMovieRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.Logger.Warn("Invalid request payload for movie update", slog.String("error", err.Error()))
+		sendError(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	movie, err := h.Service.GetByID(c, uint(id))
+
+	if err != nil {
+		h.Logger.Error("Failed to get movie by id", slog.Int("id", id), slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Internal server error")
+		return
+	}
+
+	if movie == nil {
+		h.Logger.Warn("Movie not found", slog.Int("id", id))
+		sendError(c, http.StatusNotFound, "Movie not found")
+		return
+	}
+
+	if req.Title != nil {
+		movie.Title = *req.Title
+	}
+
+	if req.Description != nil {
+		movie.Description = *req.Description
+	}
+
+	if req.ReleaseDate != nil {
+		releaseDate, err := time.Parse(time.DateTime, *req.ReleaseDate)
+		if err != nil {
+			sendError(c, http.StatusBadRequest, err.Error())
+			return
+		}
+		movie.ReleaseDate = releaseDate
+	}
+
+	if _, err := h.Service.Update(c, &models.Movie{Model: gorm.Model{ID: uint(id)}}, *movie); err != nil {
+		h.Logger.Error("Failed to update movie", slog.Int("id", id), slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Could not update movie")
+		return
+	}
+
+	resp := dto.MovieResponse{
+		ID:          movie.ID,
+		Title:       movie.Title,
+		Description: movie.Description,
+		ReleaseDate: movie.ReleaseDate.Format(time.DateTime),
+	}
+
+	h.Logger.Info("Movie updated", slog.Uint64("movie_id", uint64(movie.ID)))
+	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: resp})
+}
+
+func (h *MovieHanlder) Delete(c *gin.Context) {
+	idParam := c.Param("id")
+	id, err := strconv.Atoi(idParam)
+	if err != nil || id <= 0 {
+		sendError(c, http.StatusBadRequest, "Invalid movie ID")
+		return
+	}
+
+	if _, err := h.Service.Delete(c, &models.Movie{Model: gorm.Model{ID: uint(id)}}); err != nil {
+		h.Logger.Error("Failed to delete a movie", slog.Int("id", id), slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Could not delete movie")
+		return
+	}
+
+	h.Logger.Info("Movie deleted", slog.Int("movie_id", id))
+	c.JSON(http.StatusOK, dto.APIResponse{Success: true})
+}
