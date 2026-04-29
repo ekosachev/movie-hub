@@ -1,22 +1,16 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { register, login } from '../api/auth';
 
 type AuthMode = 'login' | 'register';
 
-const mockAuth = async (mode: AuthMode, email: string, _password: string) => {
-  await new Promise(res => setTimeout(res, 800));
-  if (mode === 'login' && email === 'wrong@test.com') {
-    throw new Error('Неверный email или пароль');
-  }
-  return { token: 'mock-jwt-token-' + Date.now(), email };
-};
-
 export const AuthPage: React.FC = () => {
-  const { login } = useAuth();
+  const { login: saveUser } = useAuth();
   const navigate = useNavigate();
 
   const [mode, setMode] = useState<AuthMode>('login');
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -29,37 +23,42 @@ export const AuthPage: React.FC = () => {
     setError('');
     setPassword('');
     setConfirmPassword('');
+    setUsername('');
+  };
+
+  const validate = (): string => {
+    if (!email.trim() || !password.trim()) return 'Заполните все поля';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'Введите корректный email';
+    if (password.length < 8) return 'Пароль должен быть не менее 8 символов';
+    if (mode === 'register') {
+      if (!username.trim()) return 'Введите имя пользователя';
+      if (username.length < 3) return 'Имя пользователя — минимум 3 символа';
+      if (password !== confirmPassword) return 'Пароли не совпадают';
+    }
+    return '';
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const validationError = validate();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
     setError('');
-
-    if (!email.trim() || !password.trim()) {
-      setError('Заполните все поля');
-      return;
-    }
-
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setError('Введите корректный email');
-      return;
-    }
-
-    if (password.length < 6) {
-      setError('Пароль должен быть не менее 6 символов');
-      return;
-    }
-
-    if (mode === 'register' && password !== confirmPassword) {
-      setError('Пароли не совпадают');
-      return;
-    }
-
     setLoading(true);
+
     try {
-      const { token, email: userEmail } = await mockAuth(mode, email, password);
-      login(userEmail, token);
-      navigate('/');
+      if (mode === 'register') {
+        const user = await register({ username, email, password });
+        saveUser(user.email, '');
+        navigate('/');
+      } else {
+        const { token } = await login({ email, password });
+        saveUser(email, token);
+        navigate('/');
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Что-то пошло не так');
     } finally {
@@ -70,15 +69,12 @@ export const AuthPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
 
-      {/* Логотип */}
       <Link to="/" className="text-accent font-black text-3xl tracking-tighter mb-10 hover:opacity-80 transition-opacity">
         MOVIE<span className="text-white">HUB</span>
       </Link>
 
-      {/* Карточка */}
       <div className="w-full max-w-md bg-card rounded-2xl border border-gray-700/50 shadow-[0_4px_40px_rgba(0,0,0,0.4)] p-8">
 
-        {/* Переключатель Вход / Регистрация */}
         <div className="flex bg-background rounded-xl p-1 mb-8">
           <button
             onClick={() => switchMode('login')}
@@ -102,7 +98,22 @@ export const AuthPage: React.FC = () => {
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
 
-          {/* Email */}
+          {mode === 'register' && (
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-bold uppercase tracking-wider text-gray-400">
+                Имя пользователя
+              </label>
+              <input
+                type="text"
+                value={username}
+                onChange={e => setUsername(e.target.value)}
+                placeholder="Минимум 3 символа"
+                autoComplete="username"
+                className="w-full bg-[#2C2E33] text-white px-4 py-3 rounded-xl border border-transparent focus:outline-none focus:border-accent/60 focus:ring-1 focus:ring-accent/60 transition-all duration-300 placeholder-gray-500"
+              />
+            </div>
+          )}
+
           <div className="flex flex-col gap-2">
             <label className="text-xs font-bold uppercase tracking-wider text-gray-400">
               Email
@@ -117,7 +128,6 @@ export const AuthPage: React.FC = () => {
             />
           </div>
 
-          {/* Пароль */}
           <div className="flex flex-col gap-2">
             <label className="text-xs font-bold uppercase tracking-wider text-gray-400">
               Пароль
@@ -127,7 +137,7 @@ export const AuthPage: React.FC = () => {
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                placeholder="Минимум 6 символов"
+                placeholder="Минимум 8 символов"
                 autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                 className="w-full bg-[#2C2E33] text-white px-4 py-3 pr-12 rounded-xl border border-transparent focus:outline-none focus:border-accent/60 focus:ring-1 focus:ring-accent/60 transition-all duration-300 placeholder-gray-500"
               />
@@ -150,7 +160,6 @@ export const AuthPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Подтверждение пароля — только при регистрации */}
           {mode === 'register' && (
             <div className="flex flex-col gap-2">
               <label className="text-xs font-bold uppercase tracking-wider text-gray-400">
@@ -167,7 +176,6 @@ export const AuthPage: React.FC = () => {
             </div>
           )}
 
-          {/* Ошибка */}
           {error && (
             <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm px-4 py-3 rounded-xl flex items-center gap-2">
               <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -177,7 +185,6 @@ export const AuthPage: React.FC = () => {
             </div>
           )}
 
-          {/* Кнопка отправки */}
           <button
             type="submit"
             disabled={loading}
@@ -198,7 +205,6 @@ export const AuthPage: React.FC = () => {
 
         </form>
 
-        {/* Подсказка переключения */}
         <p className="text-center text-gray-500 text-sm mt-6">
           {mode === 'login' ? 'Нет аккаунта?' : 'Уже есть аккаунт?'}
           {' '}
