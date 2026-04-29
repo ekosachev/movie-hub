@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { mockMovies, mockCustomCollections, currentUser as mockAdmin } from '../mockData';
 import { MovieCard } from '../components/MovieCard';
+import { CreateCollectionModal, NewCollectionData } from '../components/CreateCollectionModal';
 
 type TabType = 'favorites' | 'watched' | 'watchlist' | 'collections' | 'admin';
 
@@ -10,6 +11,8 @@ export const ProfilePage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabType>('favorites');
+  const [collections, setCollections] = useState(mockCustomCollections);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -55,6 +58,23 @@ export const ProfilePage: React.FC = () => {
     );
   };
 
+  const handleCreateCollection = (data: NewCollectionData) => {
+    const newCollection = {
+      id: Date.now(), // Генерируем временный ID
+      title: data.title,
+      description: data.description,
+      isPublic: data.isPublic,
+      movieIds: [], // Изначально пусто
+      rating: 0
+    };
+    
+    // Мутируем моковый массив, чтобы на странице Подборки (CollectionPage) эта коллекция тоже находилась!
+    mockCustomCollections.unshift(newCollection);
+    
+    setCollections(prev => [newCollection, ...prev]);
+    setIsCreateModalOpen(false);
+  };
+
   return (
     <div className="flex-1 grid grid-cols-12 gap-6 relative">
       
@@ -94,7 +114,7 @@ export const ProfilePage: React.FC = () => {
           </div>
           <div className="flex justify-between">
             <span>Моих подборок:</span>
-            <span className="text-white">{mockCustomCollections.length}</span>
+            <span className="text-white">{collections.length}</span>
           </div>
         </div>
       </aside>
@@ -127,7 +147,21 @@ export const ProfilePage: React.FC = () => {
           
           {activeTab === 'collections' && (
             <div className="flex flex-col gap-4">
-              {mockCustomCollections.length > 0 ? mockCustomCollections.map(col => (
+              
+              {/* Кнопка создания новой подборки */}
+              <button 
+                onClick={() => setIsCreateModalOpen(true)}
+                className="w-full bg-card border-2 border-dashed border-gray-600 hover:border-accent hover:bg-accent/5 text-gray-400 hover:text-accent font-bold py-6 rounded-2xl transition-all duration-300 flex flex-col items-center justify-center gap-2 group"
+              >
+                <div className="w-12 h-12 rounded-full bg-gray-800 group-hover:bg-accent/20 flex items-center justify-center transition-colors">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                </div>
+                <span>Создать новую подборку</span>
+              </button>
+
+              {collections.length > 0 ? collections.map(col => (
                 <Link to={`/collection/${col.id}`} key={col.id} className="bg-[#2C2E33] p-5 rounded-2xl border border-transparent hover:border-accent/30 transition-colors flex flex-col gap-3 group block">
                   <div className="flex justify-between items-start">
                     <div>
@@ -161,8 +195,15 @@ export const ProfilePage: React.FC = () => {
             </div>
           )}
         </div>
-
       </main>
+
+      {/* Модалка создания подборки */}
+      {isCreateModalOpen && (
+        <CreateCollectionModal
+          onClose={() => setIsCreateModalOpen(false)}
+          onSubmit={handleCreateCollection}
+        />
+      )}
     </div>
   );
 };
