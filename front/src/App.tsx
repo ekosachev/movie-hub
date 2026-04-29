@@ -6,7 +6,6 @@ import { CollectionPage } from './pages/CollectionPage';
 import { AuthPage } from './pages/AuthPage';
 import { Header } from './components/Header';
 
-// Глобальный Layout обеспечивает единую шапку сайта для всех дочерних страниц
 const GlobalLayout: React.FC<{
   searchQuery: string;
   setSearchQuery: (val: string) => void;
@@ -20,7 +19,7 @@ const GlobalLayout: React.FC<{
 };
 
 const App: React.FC = () => {
-  // Выносим стейт поиска наверх, чтобы он жил глобально и прокидывался в HomePage
+
   const [searchQuery, setSearchQuery] = useState('');
 
   return (
@@ -28,7 +27,7 @@ const App: React.FC = () => {
       {/* Маршрут без шапки */}
       <Route path="/auth" element={<AuthPage />} />
 
-      {/* Маршруты с общей шапкой */}
+
       <Route element={<GlobalLayout searchQuery={searchQuery} setSearchQuery={setSearchQuery} />}>
         <Route path="/" element={<HomePage searchQuery={searchQuery} />} />
         <Route path="/profile" element={<ProfilePage />} />
