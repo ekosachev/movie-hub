@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Routes, Route, Outlet } from 'react-router-dom';
 import { HomePage } from './pages/HomePage';
 import { ProfilePage } from './pages/ProfilePage';
+import { CollectionPage } from './pages/CollectionPage';
 import { AuthPage } from './pages/AuthPage';
 import { Header } from './components/Header';
 
@@ -31,6 +32,7 @@ const App: React.FC = () => {
       <Route element={<GlobalLayout searchQuery={searchQuery} setSearchQuery={setSearchQuery} />}>
         <Route path="/" element={<HomePage searchQuery={searchQuery} />} />
         <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/collection/:id" element={<CollectionPage />} />
       </Route>
     </Routes>
   );

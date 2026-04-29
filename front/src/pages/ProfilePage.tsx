@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { mockMovies, mockCustomCollections, currentUser as mockAdmin } from '../mockData';
 import { MovieCard } from '../components/MovieCard';
@@ -94,7 +94,7 @@ export const ProfilePage: React.FC = () => {
           </div>
           <div className="flex justify-between">
             <span>Моих подборок:</span>
-            <span className="text-white">{role === 'admin' ? mockCustomCollections.length : 0}</span>
+            <span className="text-white">{mockCustomCollections.length}</span>
           </div>
         </div>
       </aside>
@@ -127,8 +127,8 @@ export const ProfilePage: React.FC = () => {
           
           {activeTab === 'collections' && (
             <div className="flex flex-col gap-4">
-              {role === 'admin' ? mockCustomCollections.map(col => (
-                <div key={col.id} className="bg-[#2C2E33] p-5 rounded-2xl border border-transparent hover:border-accent/30 transition-colors flex flex-col gap-3 cursor-pointer group">
+              {mockCustomCollections.length > 0 ? mockCustomCollections.map(col => (
+                <Link to={`/collection/${col.id}`} key={col.id} className="bg-[#2C2E33] p-5 rounded-2xl border border-transparent hover:border-accent/30 transition-colors flex flex-col gap-3 group block">
                   <div className="flex justify-between items-start">
                     <div>
                       <h3 className="text-lg font-bold text-white group-hover:text-accent transition-colors">{col.title}</h3>
@@ -140,13 +140,13 @@ export const ProfilePage: React.FC = () => {
                       ) : (
                         <span className="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded">Приватная</span>
                       )}
-                      <span className="text-honey text-sm font-bold flex items-center gap-1">★ {col.rating ? col.rating.toFixed(1) : 'Нет'}</span>
                     </div>
                   </div>
-                  <div className="text-sm text-gray-500 font-medium mt-2 border-t border-gray-700/50 pt-3">
-                    Фильмов в подборке: <span className="text-white">{col.movieIds.length}</span>
+                  <div className="text-sm text-gray-500 font-medium mt-2 border-t border-gray-700/50 pt-3 flex justify-between items-center">
+                    <span>Фильмов в подборке: <span className="text-white">{col.movieIds.length}</span></span>
+                    <span className="text-accent text-xs font-bold uppercase tracking-wider group-hover:translate-x-1 transition-transform">Перейти →</span>
                   </div>
-                </div>
+                </Link>
               )) : (
                 <div className="text-gray-500 text-center py-10">У вас пока нет подборок</div>
               )}
