@@ -1,11 +1,32 @@
-import React, { useState } from 'react';
-import { currentUser, mockMovies, mockCustomCollections } from '../mockData';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { mockMovies, mockCustomCollections, currentUser as mockAdmin } from '../mockData';
 import { MovieCard } from '../components/MovieCard';
+import { CreateCollectionModal, NewCollectionData } from '../components/CreateCollectionModal';
 
 type TabType = 'favorites' | 'watched' | 'watchlist' | 'collections' | 'admin';
 
 export const ProfilePage: React.FC = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabType>('favorites');
+  const [collections, setCollections] = useState(mockCustomCollections);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (!user) {
+      navigate('/auth');
+    }
+  }, [user, navigate]);
+
+  // Роль пока жестко задаем как 'user'. Позже будем получать её из AuthContext от бэкенда.
+  const role: string = 'user';
+  
+  // Фейковые списки для демонстрации
+  const lists = { favorites: [], watched: [], watchlist: [] };
+
+  if (!user) return null;
 
   // Функция для получения объектов фильмов по массиву их ID
   const getMoviesByIds = (ids: number[]) => {
@@ -37,30 +58,47 @@ export const ProfilePage: React.FC = () => {
     );
   };
 
+  const handleCreateCollection = (data: NewCollectionData) => {
+    const newCollection = {
+      id: Date.now(), // Генерируем временный ID
+      title: data.title,
+      description: data.description,
+      isPublic: data.isPublic,
+      movieIds: [], // Изначально пусто
+      rating: 0
+    };
+    
+    // Мутируем моковый массив, чтобы на странице Подборки (CollectionPage) эта коллекция тоже находилась!
+    mockCustomCollections.unshift(newCollection);
+    
+    setCollections(prev => [newCollection, ...prev]);
+    setIsCreateModalOpen(false);
+  };
+
   return (
     <div className="flex-1 grid grid-cols-12 gap-6 relative">
       
       {/* Левая колонка: Профиль пользователя */}
       <aside className="col-span-12 md:col-span-4 lg:col-span-3 bg-card rounded-2xl p-6 shadow-lg border border-gray-700/30 h-fit sticky top-[104px]">
         <div className="flex flex-col items-center mb-6">
-          <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-800 mb-4 border-2 border-accent/30 shadow-[0_0_15px_rgba(168,224,95,0.2)]">
-            <img src={currentUser.avatar} alt="Avatar" className="w-full h-full object-cover" />
+          <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-800 mb-4 border-2 border-accent/30 shadow-[0_0_15px_rgba(168,224,95,0.2)] flex items-center justify-center text-4xl font-bold text-accent">
+            {user.email[0].toUpperCase()}
           </div>
-          <h2 className="text-xl font-bold text-white text-center">{currentUser.name}</h2>
+          <h2 className="text-xl font-bold text-white text-center break-all">{user.email}</h2>
           
           {/* Плашка роли */}
-          {currentUser.role === 'admin' && (
+          {role === 'admin' && (
             <span className="mt-2 bg-honey/10 text-honey border border-honey/30 px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase">
               Administrator
             </span>
           )}
-          {currentUser.role === 'content_manager' && (
+          {role === 'content_manager' && (
             <span className="mt-2 bg-blue-500/10 text-blue-400 border border-blue-500/30 px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase">
               Content Manager
             </span>
           )}
           
-          <p className="text-gray-500 text-sm mt-3">В клубе с {currentUser.registrationDate}</p>
+          <p className="text-gray-500 text-sm mt-3">В клубе с 2024-04-29</p>
         </div>
 
         <hr className="border-gray-700/50 my-6" />
@@ -68,15 +106,15 @@ export const ProfilePage: React.FC = () => {
         <div className="text-sm font-medium text-gray-400 flex flex-col gap-3">
           <div className="flex justify-between">
             <span>Просмотрено:</span>
-            <span className="text-white">{currentUser.lists.watched.length}</span>
+            <span className="text-white">{lists.watched.length}</span>
           </div>
           <div className="flex justify-between">
             <span>В избранном:</span>
-            <span className="text-white">{currentUser.lists.favorites.length}</span>
+            <span className="text-white">{lists.favorites.length}</span>
           </div>
           <div className="flex justify-between">
             <span>Моих подборок:</span>
-            <span className="text-white">{mockCustomCollections.length}</span>
+            <span className="text-white">{collections.length}</span>
           </div>
         </div>
       </aside>
@@ -91,7 +129,7 @@ export const ProfilePage: React.FC = () => {
           <TabButton active={activeTab === 'watchlist'} onClick={() => setActiveTab('watchlist')}>Буду смотреть</TabButton>
           <TabButton active={activeTab === 'collections'} onClick={() => setActiveTab('collections')}>Мои Подборки</TabButton>
           
-          {currentUser.role === 'admin' && (
+          {role === 'admin' && (
             <>
               <div className="w-px bg-gray-700 mx-2 my-2"></div>
               <TabButton active={activeTab === 'admin'} onClick={() => setActiveTab('admin')} className="text-honey hover:text-honey/80">
@@ -103,14 +141,28 @@ export const ProfilePage: React.FC = () => {
 
         {/* Область рендера выбранной вкладки */}
         <div className="bg-card rounded-2xl p-6 shadow-lg border border-gray-700/30 min-h-[500px]">
-          {activeTab === 'favorites' && renderMoviesGrid(currentUser.lists.favorites)}
-          {activeTab === 'watched' && renderMoviesGrid(currentUser.lists.watched)}
-          {activeTab === 'watchlist' && renderMoviesGrid(currentUser.lists.watchlist)}
+          {activeTab === 'favorites' && renderMoviesGrid(lists.favorites)}
+          {activeTab === 'watched' && renderMoviesGrid(lists.watched)}
+          {activeTab === 'watchlist' && renderMoviesGrid(lists.watchlist)}
           
           {activeTab === 'collections' && (
             <div className="flex flex-col gap-4">
-              {mockCustomCollections.map(col => (
-                <div key={col.id} className="bg-[#2C2E33] p-5 rounded-2xl border border-transparent hover:border-accent/30 transition-colors flex flex-col gap-3 cursor-pointer group">
+              
+              {/* Кнопка создания новой подборки */}
+              <button 
+                onClick={() => setIsCreateModalOpen(true)}
+                className="w-full bg-card border-2 border-dashed border-gray-600 hover:border-accent hover:bg-accent/5 text-gray-400 hover:text-accent font-bold py-6 rounded-2xl transition-all duration-300 flex flex-col items-center justify-center gap-2 group"
+              >
+                <div className="w-12 h-12 rounded-full bg-gray-800 group-hover:bg-accent/20 flex items-center justify-center transition-colors">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                </div>
+                <span>Создать новую подборку</span>
+              </button>
+
+              {collections.length > 0 ? collections.map(col => (
+                <Link to={`/collection/${col.id}`} key={col.id} className="bg-[#2C2E33] p-5 rounded-2xl border border-transparent hover:border-accent/30 transition-colors flex flex-col gap-3 group block">
                   <div className="flex justify-between items-start">
                     <div>
                       <h3 className="text-lg font-bold text-white group-hover:text-accent transition-colors">{col.title}</h3>
@@ -122,14 +174,16 @@ export const ProfilePage: React.FC = () => {
                       ) : (
                         <span className="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded">Приватная</span>
                       )}
-                      <span className="text-honey text-sm font-bold flex items-center gap-1">★ {col.rating ? col.rating.toFixed(1) : 'Нет'}</span>
                     </div>
                   </div>
-                  <div className="text-sm text-gray-500 font-medium mt-2 border-t border-gray-700/50 pt-3">
-                    Фильмов в подборке: <span className="text-white">{col.movieIds.length}</span>
+                  <div className="text-sm text-gray-500 font-medium mt-2 border-t border-gray-700/50 pt-3 flex justify-between items-center">
+                    <span>Фильмов в подборке: <span className="text-white">{col.movieIds.length}</span></span>
+                    <span className="text-accent text-xs font-bold uppercase tracking-wider group-hover:translate-x-1 transition-transform">Перейти →</span>
                   </div>
-                </div>
-              ))}
+                </Link>
+              )) : (
+                <div className="text-gray-500 text-center py-10">У вас пока нет подборок</div>
+              )}
             </div>
           )}
 
@@ -141,8 +195,15 @@ export const ProfilePage: React.FC = () => {
             </div>
           )}
         </div>
-
       </main>
+
+      {/* Модалка создания подборки */}
+      {isCreateModalOpen && (
+        <CreateCollectionModal
+          onClose={() => setIsCreateModalOpen(false)}
+          onSubmit={handleCreateCollection}
+        />
+      )}
     </div>
   );
 };

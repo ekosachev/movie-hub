@@ -19,11 +19,14 @@ const GlobalLayout: React.FC<{
 };
 
 const App: React.FC = () => {
+
   const [searchQuery, setSearchQuery] = useState('');
 
   return (
     <Routes>
+      {/* Маршрут без шапки */}
       <Route path="/auth" element={<AuthPage />} />
+
 
       <Route element={<GlobalLayout searchQuery={searchQuery} setSearchQuery={setSearchQuery} />}>
         <Route path="/" element={<HomePage searchQuery={searchQuery} />} />
