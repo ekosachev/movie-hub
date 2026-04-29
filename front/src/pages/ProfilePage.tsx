@@ -1,11 +1,29 @@
-import React, { useState } from 'react';
-import { currentUser, mockMovies, mockCustomCollections } from '../mockData';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { mockMovies, mockCustomCollections, currentUser as mockAdmin } from '../mockData';
 import { MovieCard } from '../components/MovieCard';
 
 type TabType = 'favorites' | 'watched' | 'watchlist' | 'collections' | 'admin';
 
 export const ProfilePage: React.FC = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabType>('favorites');
+
+  useEffect(() => {
+    if (!user) {
+      navigate('/auth');
+    }
+  }, [user, navigate]);
+
+  // Роль пока жестко задаем как 'user'. Позже будем получать её из AuthContext от бэкенда.
+  const role: string = 'user';
+  
+  // Фейковые списки для демонстрации
+  const lists = { favorites: [], watched: [], watchlist: [] };
+
+  if (!user) return null;
 
   // Функция для получения объектов фильмов по массиву их ID
   const getMoviesByIds = (ids: number[]) => {
@@ -43,24 +61,24 @@ export const ProfilePage: React.FC = () => {
       {/* Левая колонка: Профиль пользователя */}
       <aside className="col-span-12 md:col-span-4 lg:col-span-3 bg-card rounded-2xl p-6 shadow-lg border border-gray-700/30 h-fit sticky top-[104px]">
         <div className="flex flex-col items-center mb-6">
-          <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-800 mb-4 border-2 border-accent/30 shadow-[0_0_15px_rgba(168,224,95,0.2)]">
-            <img src={currentUser.avatar} alt="Avatar" className="w-full h-full object-cover" />
+          <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-800 mb-4 border-2 border-accent/30 shadow-[0_0_15px_rgba(168,224,95,0.2)] flex items-center justify-center text-4xl font-bold text-accent">
+            {user.email[0].toUpperCase()}
           </div>
-          <h2 className="text-xl font-bold text-white text-center">{currentUser.name}</h2>
+          <h2 className="text-xl font-bold text-white text-center break-all">{user.email}</h2>
           
           {/* Плашка роли */}
-          {currentUser.role === 'admin' && (
+          {role === 'admin' && (
             <span className="mt-2 bg-honey/10 text-honey border border-honey/30 px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase">
               Administrator
             </span>
           )}
-          {currentUser.role === 'content_manager' && (
+          {role === 'content_manager' && (
             <span className="mt-2 bg-blue-500/10 text-blue-400 border border-blue-500/30 px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase">
               Content Manager
             </span>
           )}
           
-          <p className="text-gray-500 text-sm mt-3">В клубе с {currentUser.registrationDate}</p>
+          <p className="text-gray-500 text-sm mt-3">В клубе с 2024-04-29</p>
         </div>
 
         <hr className="border-gray-700/50 my-6" />
@@ -68,15 +86,15 @@ export const ProfilePage: React.FC = () => {
         <div className="text-sm font-medium text-gray-400 flex flex-col gap-3">
           <div className="flex justify-between">
             <span>Просмотрено:</span>
-            <span className="text-white">{currentUser.lists.watched.length}</span>
+            <span className="text-white">{lists.watched.length}</span>
           </div>
           <div className="flex justify-between">
             <span>В избранном:</span>
-            <span className="text-white">{currentUser.lists.favorites.length}</span>
+            <span className="text-white">{lists.favorites.length}</span>
           </div>
           <div className="flex justify-between">
             <span>Моих подборок:</span>
-            <span className="text-white">{mockCustomCollections.length}</span>
+            <span className="text-white">{role === 'admin' ? mockCustomCollections.length : 0}</span>
           </div>
         </div>
       </aside>
@@ -91,7 +109,7 @@ export const ProfilePage: React.FC = () => {
           <TabButton active={activeTab === 'watchlist'} onClick={() => setActiveTab('watchlist')}>Буду смотреть</TabButton>
           <TabButton active={activeTab === 'collections'} onClick={() => setActiveTab('collections')}>Мои Подборки</TabButton>
           
-          {currentUser.role === 'admin' && (
+          {role === 'admin' && (
             <>
               <div className="w-px bg-gray-700 mx-2 my-2"></div>
               <TabButton active={activeTab === 'admin'} onClick={() => setActiveTab('admin')} className="text-honey hover:text-honey/80">
@@ -103,13 +121,13 @@ export const ProfilePage: React.FC = () => {
 
         {/* Область рендера выбранной вкладки */}
         <div className="bg-card rounded-2xl p-6 shadow-lg border border-gray-700/30 min-h-[500px]">
-          {activeTab === 'favorites' && renderMoviesGrid(currentUser.lists.favorites)}
-          {activeTab === 'watched' && renderMoviesGrid(currentUser.lists.watched)}
-          {activeTab === 'watchlist' && renderMoviesGrid(currentUser.lists.watchlist)}
+          {activeTab === 'favorites' && renderMoviesGrid(lists.favorites)}
+          {activeTab === 'watched' && renderMoviesGrid(lists.watched)}
+          {activeTab === 'watchlist' && renderMoviesGrid(lists.watchlist)}
           
           {activeTab === 'collections' && (
             <div className="flex flex-col gap-4">
-              {mockCustomCollections.map(col => (
+              {role === 'admin' ? mockCustomCollections.map(col => (
                 <div key={col.id} className="bg-[#2C2E33] p-5 rounded-2xl border border-transparent hover:border-accent/30 transition-colors flex flex-col gap-3 cursor-pointer group">
                   <div className="flex justify-between items-start">
                     <div>
@@ -129,7 +147,9 @@ export const ProfilePage: React.FC = () => {
                     Фильмов в подборке: <span className="text-white">{col.movieIds.length}</span>
                   </div>
                 </div>
-              ))}
+              )) : (
+                <div className="text-gray-500 text-center py-10">У вас пока нет подборок</div>
+              )}
             </div>
           )}
 

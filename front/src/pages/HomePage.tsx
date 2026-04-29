@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { FilterPanel, FilterSettings } from '../components/FilterPanel';
 import { MovieCard } from '../components/MovieCard';
+import { MovieDetailsModal } from '../components/MovieDetailsModal';
 import { mockMovies } from '../mockData';
 
 interface HomePageProps {
@@ -9,6 +10,9 @@ interface HomePageProps {
 
 export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
   const [activeFilters, setActiveFilters] = useState<FilterSettings | null>(null);
+  const [selectedMovieId, setSelectedMovieId] = useState<number | null>(null);
+
+  const selectedMovie = mockMovies.find(m => m.id === selectedMovieId);
 
   // Каскадная фильтрация
   const filteredMovies = mockMovies.filter(movie => {
@@ -57,6 +61,7 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
                 tags={movie.tags}
                 rating={movie.rating}
                 posterUrl={movie.posterUrl}
+                onClick={setSelectedMovieId}
               />
             ))
           ) : (
@@ -66,6 +71,13 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
           )}
         </div>
       </main>
+
+      {selectedMovie && (
+        <MovieDetailsModal
+          movie={selectedMovie}
+          onClose={() => setSelectedMovieId(null)}
+        />
+      )}
     </div>
   );
 };
