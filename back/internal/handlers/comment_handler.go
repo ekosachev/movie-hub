@@ -33,6 +33,7 @@ func (h *CommentHandler) RegisterRoutes(router *gin.RouterGroup) {
 		protectedGroup := group.Group("/").Use(middleware.AuthMiddleware())
 		{
 			protectedGroup.POST("/", h.Create)
+			protectedGroup.PATCH("/:id", h.Update)
 			protectedGroup.DELETE("/:id", h.Delete)
 		}
 	}
@@ -94,6 +95,56 @@ func (h *CommentHandler) GetByID(c *gin.Context) {
 		MovieID:         comment.MovieID,
 		ParentCommentID: comment.ParentCommentID,
 	}
+	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: resp})
+}
+
+func (h *CommentHandler) Update(c *gin.Context) {
+	idParam := c.Param("id")
+	id, err := strconv.Atoi(idParam)
+	if err != nil || id <= 0 {
+		sendError(c, http.StatusBadRequest, "Invalid comment ID")
+		return
+	}
+	var req dto.UpdateCommentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.Logger.Warn("Invalid request payload for comment update", slog.String("error", err.Error()))
+		sendError(c, http.StatusBadRequest, err.Error())
+		return
+	}
+	comment, err := h.Service.GetByID(c, uint(id))
+
+	if err != nil {
+		h.Logger.Error("Failed to get comment by id", slog.Int("id", id), slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Internal server error")
+		return
+	}
+	if comment == nil {
+		h.Logger.Warn("Comment not found", slog.Int("id", id))
+		sendError(c, http.StatusNotFound, "Comment not found")
+		return
+	}
+	userID := int(c.MustGet("userID").(float64))
+	if comment.UserID != userID {
+		h.Logger.Warn("Access denied: not the owner", slog.Int("user_id", userID), slog.Int("comment_id", id))
+		sendError(c, http.StatusForbidden, "You can only update your own comments")
+		return
+	}
+	if req.Content != nil {
+		comment.Content = *req.Content
+	}
+	if _, err := h.Service.Update(c, &models.Comment{Model: gorm.Model{ID: uint(id)}}, *comment); err != nil {
+		h.Logger.Error("Failed to update comment", slog.Int("id", id), slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Could not update comment")
+		return
+	}
+	resp := dto.CommentResponse{
+		ID:              comment.ID,
+		Content:         comment.Content,
+		UserID:          comment.UserID,
+		MovieID:         comment.MovieID,
+		ParentCommentID: comment.ParentCommentID,
+	}
+	h.Logger.Info("Comment updated", slog.Uint64("comment_id", uint64(comment.ID)))
 	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: resp})
 }
 
