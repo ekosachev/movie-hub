@@ -53,7 +53,7 @@ export const AuthPage: React.FC = () => {
       if (mode === 'register') {
         const user = await register({ username, email, password });
         saveUser(user.email, '');
-        navigate('/');
+        navigate('/onboarding');
       } else {
         const { token } = await login({ email, password });
         saveUser(email, token);
