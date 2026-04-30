@@ -1,16 +1,24 @@
 package services
 
 import (
+	"context"
+
+	"github.com/ekosachev/movie-hub/internal/dto"
 	"github.com/ekosachev/movie-hub/internal/models"
 	"github.com/ekosachev/movie-hub/internal/repositories"
 )
 
 type MovieService struct {
 	*BaseService[models.Movie]
+	Repo repositories.MovieRepository
 }
 
-func NewMovieService(repo repositories.BaseRepository[models.Movie]) *MovieService {
+func NewMovieService(repo repositories.MovieRepository) *MovieService {
 	return &MovieService{
-		BaseService: NewBaseService(repo),
+		Repo: repo,
 	}
+}
+
+func (s *MovieService) FindWithFilters(ctx context.Context, filter dto.MovieFilterRequest) ([]models.Movie, error) {
+	return s.Repo.FindWithFilters(ctx, filter)
 }
