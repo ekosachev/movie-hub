@@ -35,7 +35,7 @@ func (h *UserHandler) RegisterRoutes(router *gin.RouterGroup) {
 		protectedGroup := group.Group("/").Use(middleware.AuthMiddleware())
 		{
 			protectedGroup.PATCH("/:id", h.Update)
-			protectedGroup.DELETE("/:id", h.Delete)
+			protectedGroup.DELETE("/:id", h.Delete).Use(middleware.PermissionMiddleware("ban_users"))
 		}
 	}
 }
