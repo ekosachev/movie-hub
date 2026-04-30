@@ -49,9 +49,10 @@ func (h *RoleHandler) Create(c *gin.Context) {
 	}
 
 	role := &models.Role{
-		CanCreateMovies:   req.CanCreateMovies,
-		CanBanUsers:       req.CanBanUsers,
-		CanRemoveComments: req.CanRemoveComments,
+		CanDeleteUsers:  req.CanDeleteUsers,
+		CanUpdateMovies: req.CanUpdateMovies,
+		CanUpdateRoles:  req.CanUpdateRoles,
+		CanUpdateTags:   req.CanUpdateTags,
 	}
 
 	if err := h.Service.Create(c, role); err != nil {
@@ -61,10 +62,11 @@ func (h *RoleHandler) Create(c *gin.Context) {
 	}
 
 	resp := dto.RoleResponse{
-		ID:                role.ID,
-		CanCreateMovies:   role.CanCreateMovies,
-		CanRemoveComments: role.CanRemoveComments,
-		CanBanUsers:       role.CanBanUsers,
+		ID:              role.ID,
+		CanDeleteUsers:  role.CanDeleteUsers,
+		CanUpdateMovies: role.CanUpdateMovies,
+		CanUpdateRoles:  role.CanUpdateRoles,
+		CanUpdateTags:   role.CanUpdateTags,
 	}
 
 	h.Logger.Info("Role created successfully", slog.Uint64("role_id", uint64(role.ID)))
@@ -95,10 +97,11 @@ func (h *RoleHandler) GetByID(c *gin.Context) {
 	}
 
 	resp := dto.RoleResponse{
-		ID:                role.ID,
-		CanBanUsers:       role.CanBanUsers,
-		CanCreateMovies:   role.CanCreateMovies,
-		CanRemoveComments: role.CanRemoveComments,
+		ID:              role.ID,
+		CanDeleteUsers:  role.CanDeleteUsers,
+		CanUpdateMovies: role.CanUpdateMovies,
+		CanUpdateRoles:  role.CanUpdateRoles,
+		CanUpdateTags:   role.CanUpdateTags,
 	}
 
 	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: resp})
@@ -135,16 +138,17 @@ func (h *RoleHandler) Update(c *gin.Context) {
 		return
 	}
 
-	if req.CanBanUsers != nil {
-		role.CanBanUsers = *req.CanBanUsers
+	if req.CanDeleteUsers != nil {
+		role.CanDeleteUsers = *req.CanDeleteUsers
 	}
-
-	if req.CanCreateMovies != nil {
-		role.CanCreateMovies = *req.CanCreateMovies
+	if req.CanUpdateMovies != nil {
+		role.CanUpdateMovies = *req.CanUpdateMovies
 	}
-
-	if req.CanRemoveComments != nil {
-		role.CanRemoveComments = *req.CanRemoveComments
+	if req.CanUpdateRoles != nil {
+		role.CanUpdateRoles = *req.CanUpdateRoles
+	}
+	if req.CanUpdateTags != nil {
+		role.CanUpdateTags = *req.CanUpdateTags
 	}
 
 	if _, err := h.Service.Update(c, &models.Role{Model: gorm.Model{ID: uint(id)}}, *role); err != nil {
@@ -154,10 +158,11 @@ func (h *RoleHandler) Update(c *gin.Context) {
 	}
 
 	resp := dto.RoleResponse{
-		ID:                role.ID,
-		CanRemoveComments: role.CanRemoveComments,
-		CanCreateMovies:   role.CanCreateMovies,
-		CanBanUsers:       role.CanBanUsers,
+		ID:              role.ID,
+		CanDeleteUsers:  role.CanDeleteUsers,
+		CanUpdateMovies: role.CanUpdateMovies,
+		CanUpdateRoles:  role.CanUpdateRoles,
+		CanUpdateTags:   role.CanUpdateTags,
 	}
 
 	h.Logger.Info("Role updated", slog.Uint64("role_id", uint64(role.ID)))
