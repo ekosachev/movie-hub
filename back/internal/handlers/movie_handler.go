@@ -30,6 +30,7 @@ func (h *MovieHanlder) RegisterRoutes(router *gin.RouterGroup) {
 	group := router.Group("/movies")
 	{
 		group.GET("/:id", h.GetByID)
+		group.GET("/search", h.FindWithFilters)
 
 		protectedGroup := group.Group("/").Use(middleware.AuthMiddleware()).Use(middleware.PermissionMiddleware("update_movies"))
 		{
@@ -193,4 +194,32 @@ func (h *MovieHanlder) Delete(c *gin.Context) {
 
 	h.Logger.Info("Movie deleted", slog.Int("movie_id", id))
 	c.JSON(http.StatusOK, dto.APIResponse{Success: true})
+}
+
+func (h *MovieHanlder) FindWithFilters(c *gin.Context) {
+	var filter *dto.MovieFilterRequest
+
+	if err := c.ShouldBindQuery(filter); err != nil {
+		sendError(c, http.StatusBadRequest, "Invalid filter parameters: "+err.Error())
+	}
+
+	movies, err := h.Service.FindWithFilters(c, *filter)
+
+	if err != nil {
+		h.Logger.Error("Failed to search movies: ", slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Search failed")
+	}
+
+	resp := []dto.MovieResponse{}
+
+	for _, movie := range movies {
+		resp = append(resp, dto.MovieResponse{
+			ID:          movie.ID,
+			Title:       movie.Title,
+			Description: movie.Description,
+			ReleaseDate: movie.ReleaseDate.Format(time.DateOnly),
+		})
+	}
+
+	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: resp})
 }
