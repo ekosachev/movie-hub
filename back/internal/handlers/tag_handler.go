@@ -31,7 +31,7 @@ func (h *TagHandler) RegisterRoutes(router *gin.RouterGroup) {
 		// register routes here
 		group.GET("/:id", h.GetByID)
 
-		protectedGroup := group.Group("/").Use(middleware.AuthMiddleware())
+		protectedGroup := group.Group("/").Use(middleware.AuthMiddleware()).Use(middleware.PermissionMiddleware("update_tags"))
 		{
 			protectedGroup.POST("/", h.Create)
 			protectedGroup.PATCH("/:id", h.Update)

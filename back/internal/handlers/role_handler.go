@@ -30,7 +30,7 @@ func (h *RoleHandler) RegisterRoutes(router *gin.RouterGroup) {
 	{
 		group.GET("/:id", h.GetByID)
 
-		protectedGroup := group.Group("/").Use(middleware.AuthMiddleware())
+		protectedGroup := group.Group("/").Use(middleware.AuthMiddleware()).Use(middleware.PermissionMiddleware("update_roles"))
 		{
 			protectedGroup.POST("/", h.Create)
 			protectedGroup.PATCH("/:id", h.Update)
