@@ -43,14 +43,14 @@ func (h *CollectionHandler) Create(c *gin.Context) {
 	var req dto.CreateCollectionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		h.Logger.Warn("Invalid request payload for collection creation", slog.String("error", err.Error()))
-		sendError(c, http.StatusBadRequest, "Invalid request body")
+		sendError(c, http.StatusBadRequest, "Invalid data format: "+err.Error())
 		return
 	}
-
+	userID := int(c.MustGet("userID").(float64))
 	collection := &models.Collection{
 		Name:     req.Name,
 		IsPublic: req.IsPublic,
-		UserID:   req.UserID,
+		UserID:   userID,
 	}
 
 	if err := h.Service.Create(c, collection); err != nil {
@@ -64,28 +64,34 @@ func (h *CollectionHandler) Create(c *gin.Context) {
 		IsPublic: collection.IsPublic,
 		UserID:   collection.UserID,
 	}
-	h.Logger.Info("Collection created", slog.Uint64("collection_id", uint64(collection.ID)))
+
+	h.Logger.Info("Collection created successfully", slog.Uint64("collection_id", uint64(collection.ID)))
 	c.JSON(http.StatusCreated, dto.APIResponse{Success: true, Data: resp})
 }
 
 func (h *CollectionHandler) GetByID(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
-	if err != nil {
-		sendError(c, http.StatusBadRequest, "Invalid ID format")
+
+	if err != nil || id <= 0 {
+		sendError(c, http.StatusBadRequest, "Invalid collection ID")
 		return
 	}
-	collections, err := h.Service.Query(c, &models.Collection{Model: gorm.Model{ID: uint(id)}})
+
+	collection, err := h.Service.GetByID(c, uint(id))
+
 	if err != nil {
-		h.Logger.Error("Failed to fetch collection", slog.Int("id", id), slog.String("error", err.Error()))
-		sendError(c, http.StatusInternalServerError, "Error fetching collection")
+		h.Logger.Error("Failed to get collection by id", slog.Int("id", id), slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Could not get collection")
 		return
 	}
-	if len(collections) == 0 {
+
+	if collection == nil {
+		h.Logger.Warn("Collection not found", slog.Int("id", id))
 		sendError(c, http.StatusNotFound, "Collection not found")
 		return
 	}
-	collection := collections[0]
+
 	resp := dto.CollectionResponse{
 		ID:       collection.ID,
 		Name:     collection.Name,
@@ -98,22 +104,37 @@ func (h *CollectionHandler) GetByID(c *gin.Context) {
 func (h *CollectionHandler) Update(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
-	if err != nil {
-		sendError(c, http.StatusBadRequest, "Invalid ID format")
+
+	if err != nil || id <= 0 {
+		sendError(c, http.StatusBadRequest, "Invalid collection ID")
 		return
 	}
 	var req dto.UpdateCollectionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		sendError(c, http.StatusBadRequest, "Invalid update payload")
+		h.Logger.Warn("Invalid request payload for collection update", slog.String("error", err.Error()))
+		sendError(c, http.StatusBadRequest, err.Error())
 		return
 	}
-	existing, err := h.Service.Query(c, &models.Collection{Model: gorm.Model{ID: uint(id)}})
-	if err != nil || len(existing) == 0 {
+
+	collection, err := h.Service.GetByID(c, uint(id))
+
+	if err != nil {
+		h.Logger.Error("Failed to get collection by id", slog.Int("id", id), slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Internal server error")
+		return
+	}
+	if collection == nil {
+		h.Logger.Warn("Collection not found", slog.Int("id", id))
 		sendError(c, http.StatusNotFound, "Collection not found")
 		return
 	}
 
-	collection := existing[0]
+	userID := int(c.MustGet("userID").(float64))
+	if collection.UserID != userID {
+		h.Logger.Warn("Access denied: not the owner", slog.Int("user_id", userID), slog.Int("collection_id", id))
+		sendError(c, http.StatusForbidden, "You can only update your own collections")
+		return
+	}
 	if req.Name != nil {
 		collection.Name = *req.Name
 	}
@@ -121,7 +142,7 @@ func (h *CollectionHandler) Update(c *gin.Context) {
 		collection.IsPublic = *req.IsPublic
 	}
 
-	if _, err := h.Service.Update(c, &models.Collection{Model: gorm.Model{ID: uint(id)}}, collection); err != nil {
+	if _, err := h.Service.Update(c, &models.Collection{Model: gorm.Model{ID: uint(id)}}, *collection); err != nil {
 		h.Logger.Error("Failed to update collection", slog.Int("id", id), slog.String("error", err.Error()))
 		sendError(c, http.StatusInternalServerError, "Could not update collection")
 		return
@@ -133,30 +154,40 @@ func (h *CollectionHandler) Update(c *gin.Context) {
 		IsPublic: collection.IsPublic,
 		UserID:   collection.UserID,
 	}
-
+	h.Logger.Info("Collection updated", slog.Uint64("collection_id", uint64(collection.ID)))
 	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: resp})
 }
 
 func (h *CollectionHandler) Delete(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
-	if err != nil {
-		sendError(c, http.StatusBadRequest, "Invalid ID format")
+	if err != nil || id <= 0 {
+		sendError(c, http.StatusBadRequest, "Invalid collection ID")
 		return
 	}
-
-	rows, err := h.Service.Delete(c, &models.Collection{Model: gorm.Model{ID: uint(id)}})
+	collection, err := h.Service.GetByID(c, uint(id))
 	if err != nil {
-		h.Logger.Error("Failed to delete collection", slog.Int("id", id), slog.String("error", err.Error()))
-		sendError(c, http.StatusInternalServerError, "Could not delete collection")
+		h.Logger.Error("Failed to get collection by id", slog.Int("id", id), slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Internal server error")
 		return
 	}
-
-	if rows == 0 {
+	if collection == nil {
+		h.Logger.Warn("Collection not found", slog.Int("id", id))
 		sendError(c, http.StatusNotFound, "Collection not found")
 		return
 	}
 
-	h.Logger.Info("Collection deleted", slog.Int("id", id))
-	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: "Collection deleted successfully"})
+	userID := int(c.MustGet("userID").(float64))
+	if collection.UserID != userID {
+		h.Logger.Warn("Access denied: not the owner", slog.Int("user_id", userID), slog.Int("collection_id", id))
+		sendError(c, http.StatusForbidden, "You can only delete your own collections")
+		return
+	}
+	if _, err := h.Service.Delete(c, &models.Collection{Model: gorm.Model{ID: uint(id)}}); err != nil {
+		h.Logger.Error("Failed to delete a collection", slog.Int("id", id), slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Could not delete collection")
+		return
+	}
+	h.Logger.Info("Collection deleted", slog.Int("collection_id", id))
+	c.JSON(http.StatusOK, dto.APIResponse{Success: true})
 }

@@ -41,15 +41,17 @@ func (h *CommentHandler) RegisterRoutes(router *gin.RouterGroup) {
 
 func (h *CommentHandler) Create(c *gin.Context) {
 	var req dto.CreateCommentRequest
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		h.Logger.Warn("Invalid request payload for comment creation", slog.String("error", err.Error()))
-		sendError(c, http.StatusBadRequest, "Invalid request body")
+		sendError(c, http.StatusBadRequest, "Invalid data format: "+err.Error())
 		return
 	}
+	userID := int(c.MustGet("userID").(float64))
 	comment := &models.Comment{
 		Content:         req.Content,
 		ParentCommentID: req.ParentCommentID,
-		UserID:          req.UserID,
+		UserID:          userID,
 		MovieID:         req.MovieID,
 	}
 	if err := h.Service.Create(c, comment); err != nil {
@@ -60,103 +62,123 @@ func (h *CommentHandler) Create(c *gin.Context) {
 	resp := dto.CommentResponse{
 		ID:              comment.ID,
 		Content:         comment.Content,
-		ParentCommentID: comment.ParentCommentID,
 		UserID:          comment.UserID,
 		MovieID:         comment.MovieID,
+		ParentCommentID: comment.ParentCommentID,
 	}
-	h.Logger.Info("Comment created", slog.Uint64("comment_id", uint64(comment.ID)))
+	h.Logger.Info("Comment created successfully", slog.Uint64("comment_id", uint64(comment.ID)))
 	c.JSON(http.StatusCreated, dto.APIResponse{Success: true, Data: resp})
 }
 
 func (h *CommentHandler) GetByID(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
-	if err != nil {
-		sendError(c, http.StatusBadRequest, "Invalid ID format")
+	if err != nil || id <= 0 {
+		sendError(c, http.StatusBadRequest, "Invalid comment ID")
 		return
 	}
-	comments, err := h.Service.Query(c, &models.Comment{Model: gorm.Model{ID: uint(id)}})
+	comment, err := h.Service.GetByID(c, uint(id))
 	if err != nil {
-		h.Logger.Error("Failed to fetch comment", slog.Int("id", id), slog.String("error", err.Error()))
-		sendError(c, http.StatusInternalServerError, "Error fetching comment")
+		h.Logger.Error("Failed to get comment by id", slog.Int("id", id), slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Could not get comment")
 		return
 	}
-	if len(comments) == 0 {
+	if comment == nil {
+		h.Logger.Warn("Comment not found", slog.Int("id", id))
 		sendError(c, http.StatusNotFound, "Comment not found")
 		return
 	}
-	comment := comments[0]
 	resp := dto.CommentResponse{
 		ID:              comment.ID,
 		Content:         comment.Content,
-		ParentCommentID: comment.ParentCommentID,
 		UserID:          comment.UserID,
 		MovieID:         comment.MovieID,
+		ParentCommentID: comment.ParentCommentID,
 	}
-
 	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: resp})
 }
 
 func (h *CommentHandler) Update(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
-	if err != nil {
-		sendError(c, http.StatusBadRequest, "Invalid ID format")
+	if err != nil || id <= 0 {
+		sendError(c, http.StatusBadRequest, "Invalid comment ID")
 		return
 	}
 	var req dto.UpdateCommentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		sendError(c, http.StatusBadRequest, "Invalid update payload")
+		h.Logger.Warn("Invalid request payload for comment update", slog.String("error", err.Error()))
+		sendError(c, http.StatusBadRequest, err.Error())
 		return
 	}
+	comment, err := h.Service.GetByID(c, uint(id))
 
-	existing, err := h.Service.Query(c, &models.Comment{Model: gorm.Model{ID: uint(id)}})
-	if err != nil || len(existing) == 0 {
+	if err != nil {
+		h.Logger.Error("Failed to get comment by id", slog.Int("id", id), slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Internal server error")
+		return
+	}
+	if comment == nil {
+		h.Logger.Warn("Comment not found", slog.Int("id", id))
 		sendError(c, http.StatusNotFound, "Comment not found")
 		return
 	}
-	comment := existing[0]
+	userID := int(c.MustGet("userID").(float64))
+	if comment.UserID != userID {
+		h.Logger.Warn("Access denied: not the owner", slog.Int("user_id", userID), slog.Int("comment_id", id))
+		sendError(c, http.StatusForbidden, "You can only update your own comments")
+		return
+	}
 	if req.Content != nil {
 		comment.Content = *req.Content
 	}
-
-	if _, err := h.Service.Update(c, &models.Comment{Model: gorm.Model{ID: uint(id)}}, comment); err != nil {
+	if _, err := h.Service.Update(c, &models.Comment{Model: gorm.Model{ID: uint(id)}}, *comment); err != nil {
 		h.Logger.Error("Failed to update comment", slog.Int("id", id), slog.String("error", err.Error()))
 		sendError(c, http.StatusInternalServerError, "Could not update comment")
 		return
 	}
-
 	resp := dto.CommentResponse{
 		ID:              comment.ID,
 		Content:         comment.Content,
-		ParentCommentID: comment.ParentCommentID,
 		UserID:          comment.UserID,
 		MovieID:         comment.MovieID,
+		ParentCommentID: comment.ParentCommentID,
 	}
-
+	h.Logger.Info("Comment updated", slog.Uint64("comment_id", uint64(comment.ID)))
 	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: resp})
 }
 
 func (h *CommentHandler) Delete(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
+	if err != nil || id <= 0 {
+		sendError(c, http.StatusBadRequest, "Invalid comment ID")
+		return
+	}
+	comment, err := h.Service.GetByID(c, uint(id))
 	if err != nil {
-		sendError(c, http.StatusBadRequest, "Invalid ID format")
+		h.Logger.Error("Failed to get comment by id", slog.Int("id", id), slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Internal server error")
 		return
 	}
 
-	rows, err := h.Service.Delete(c, &models.Comment{Model: gorm.Model{ID: uint(id)}})
-	if err != nil {
-		h.Logger.Error("Failed to delete comment", slog.Int("id", id), slog.String("error", err.Error()))
-		sendError(c, http.StatusInternalServerError, "Could not delete comment")
-		return
-	}
-
-	if rows == 0 {
+	if comment == nil {
+		h.Logger.Warn("Comment not found", slog.Int("id", id))
 		sendError(c, http.StatusNotFound, "Comment not found")
 		return
 	}
 
-	h.Logger.Info("Comment deleted", slog.Int("id", id))
-	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: "Comment deleted successfully"})
+	userID := int(c.MustGet("userID").(float64))
+	if comment.UserID != userID {
+		h.Logger.Warn("Access denied: not the owner", slog.Int("user_id", userID), slog.Int("comment_id", id))
+		sendError(c, http.StatusForbidden, "You can only delete your own comments")
+		return
+	}
+	if _, err := h.Service.Delete(c, &models.Comment{Model: gorm.Model{ID: uint(id)}}); err != nil {
+		h.Logger.Error("Failed to delete a comment", slog.Int("id", id), slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Could not delete comment")
+		return
+	}
+	h.Logger.Info("Comment deleted", slog.Int("comment_id", id))
+	c.JSON(http.StatusOK, dto.APIResponse{Success: true})
 }
