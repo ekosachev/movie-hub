@@ -44,3 +44,37 @@ func (r *MovieRepository) Update(ctx context.Context, filter *models.Movie, obj 
 func (r *MovieRepository) Delete(ctx context.Context, filter *models.Movie) (int, error) {
 	return gorm.G[models.Movie](r.db).Where(filter).Delete(ctx)
 }
+
+func (r *MovieRepository) FindWithFilters(ctx context.Context, filter dto.MovieFilterRequest) ([]models.Movie, error) {
+	var movies []models.Movie
+
+	query := r.db.Model(&models.Movie{})
+
+	if filter.Title != "" {
+		query = query.Where("title ILIKE ?", "%"+filter.Title+"%")
+	}
+
+	if filter.DateFrom != nil {
+		query = query.Where("release_date >= ?", filter.DateFrom)
+	}
+
+	if filter.DateTo != nil {
+		query = query.Where("release_date <= ?", filter.DateTo)
+	}
+
+	if len(filter.TagIDs) > 0 {
+		query = query.Joins("JOIN movie_tag ON movie_tag.movie_id = movies.id").
+			Where("movie_tag.tag_id IN ?", filter.TagIDs).
+			Group("movies.id").
+			Having("COUNT (DISTINCT movie_tag.tag_id) >= ?", len(filter.TagIDs))
+	}
+
+	if filter.MinRating > 0 {
+		query = query.Joins("LEFT JOIN ratings ON ratings.movie_id = movies.id").
+			Group("movies.id").
+			Having("AVG(ratings.score) >= ?", filter.MinRating)
+	}
+
+	err := query.Preload("Tag").Find(&movies).Error
+	return movies, err
+}
