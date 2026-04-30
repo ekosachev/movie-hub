@@ -30,7 +30,7 @@ func (h *CastHandler) RegisterRoutes(router *gin.RouterGroup) {
 	{
 		group.GET("/:id", h.GetByID)
 
-		protectedGroup := group.Group("/").Use(middleware.AuthMiddleware())
+		protectedGroup := group.Group("/").Use(middleware.AuthMiddleware(), middleware.PermissionMiddleware("manage_cast"))
 		{
 			protectedGroup.POST("/", h.Create)
 			protectedGroup.PATCH("/:id", h.Update)
