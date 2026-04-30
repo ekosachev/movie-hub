@@ -9,6 +9,7 @@ import (
 )
 
 type MovieService struct {
+	*BaseService[models.Movie]
 	Repo repositories.MovieRepository
 }
 
