@@ -4,23 +4,27 @@ import "gorm.io/gorm"
 
 type Role struct {
 	gorm.Model
-	CanCreateMovies   bool
-	CanBanUsers       bool
-	CanRemoveComments bool
-	Users             []User
+	CanDeleteUsers  bool
+	CanUpdateMovies bool
+	CanUpdateRoles  bool
+	CanUpdateTags   bool
+	Users           []User
 }
 
 func (r *Role) GeneratePermissionList() []string {
 	permissions := []string{}
 
-	if r.CanCreateMovies {
-		permissions = append(permissions, "create_movies")
+	if r.CanDeleteUsers {
+		permissions = append(permissions, "delete_users")
 	}
-	if r.CanBanUsers {
-		permissions = append(permissions, "ban_users")
+	if r.CanUpdateMovies {
+		permissions = append(permissions, "update_movies")
 	}
-	if r.CanRemoveComments {
-		permissions = append(permissions, "remove_comments")
+	if r.CanUpdateRoles {
+		permissions = append(permissions, "update_roles")
+	}
+	if r.CanUpdateTags {
+		permissions = append(permissions, "update_tags")
 	}
 
 	return permissions

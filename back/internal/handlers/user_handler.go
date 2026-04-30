@@ -35,7 +35,7 @@ func (h *UserHandler) RegisterRoutes(router *gin.RouterGroup) {
 		protectedGroup := group.Group("/").Use(middleware.AuthMiddleware())
 		{
 			protectedGroup.PATCH("/:id", h.Update)
-			protectedGroup.DELETE("/:id", h.Delete)
+			protectedGroup.DELETE("/:id", h.Delete).Use(middleware.PermissionMiddleware("delete_users"))
 		}
 	}
 }
@@ -111,6 +111,12 @@ func (h *UserHandler) Update(c *gin.Context) {
 
 	if err != nil || id <= 0 {
 		sendError(c, http.StatusBadRequest, "Invalid user ID")
+		return
+	}
+
+	token_sub := c.GetUint("userID")
+	if uint(id) != token_sub {
+		sendError(c, http.StatusForbidden, "Can only update yourself")
 		return
 	}
 
