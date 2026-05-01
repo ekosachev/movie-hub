@@ -10,10 +10,10 @@ import (
 
 type MovieService struct {
 	*BaseService[models.Movie]
-	Repo repositories.MovieRepository
+	Repo *repositories.MovieRepository
 }
 
-func NewMovieService(repo repositories.MovieRepository) *MovieService {
+func NewMovieService(repo *repositories.MovieRepository) *MovieService {
 	return &MovieService{
 		Repo: repo,
 	}
