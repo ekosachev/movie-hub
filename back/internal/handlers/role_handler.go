@@ -49,6 +49,7 @@ func (h *RoleHandler) Create(c *gin.Context) {
 	}
 
 	role := &models.Role{
+		Name:            req.Name,
 		CanDeleteUsers:  req.CanDeleteUsers,
 		CanUpdateMovies: req.CanUpdateMovies,
 		CanUpdateRoles:  req.CanUpdateRoles,
@@ -63,6 +64,7 @@ func (h *RoleHandler) Create(c *gin.Context) {
 
 	resp := dto.RoleResponse{
 		ID:              role.ID,
+		Name:            role.Name,
 		CanDeleteUsers:  role.CanDeleteUsers,
 		CanUpdateMovies: role.CanUpdateMovies,
 		CanUpdateRoles:  role.CanUpdateRoles,
@@ -98,6 +100,7 @@ func (h *RoleHandler) GetByID(c *gin.Context) {
 
 	resp := dto.RoleResponse{
 		ID:              role.ID,
+		Name:            role.Name,
 		CanDeleteUsers:  role.CanDeleteUsers,
 		CanUpdateMovies: role.CanUpdateMovies,
 		CanUpdateRoles:  role.CanUpdateRoles,
@@ -138,6 +141,9 @@ func (h *RoleHandler) Update(c *gin.Context) {
 		return
 	}
 
+	if req.Name != nil {
+		role.Name = *req.Name
+	}
 	if req.CanDeleteUsers != nil {
 		role.CanDeleteUsers = *req.CanDeleteUsers
 	}
@@ -159,6 +165,7 @@ func (h *RoleHandler) Update(c *gin.Context) {
 
 	resp := dto.RoleResponse{
 		ID:              role.ID,
+		Name:            role.Name,
 		CanDeleteUsers:  role.CanDeleteUsers,
 		CanUpdateMovies: role.CanUpdateMovies,
 		CanUpdateRoles:  role.CanUpdateRoles,

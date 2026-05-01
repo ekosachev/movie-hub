@@ -4,6 +4,7 @@ import "gorm.io/gorm"
 
 type Role struct {
 	gorm.Model
+	Name                 string
 	CanDeleteUsers       bool
 	CanUpdateMovies      bool
 	CanUpdateRoles       bool
