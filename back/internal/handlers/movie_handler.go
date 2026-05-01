@@ -17,13 +17,15 @@ import (
 type MovieHanlder struct {
 	Service        *services.MovieService
 	CommentService *services.CommentService
+	RateService    *services.RateService
 	Logger         *slog.Logger
 }
 
-func NewMovieHandler(service *services.MovieService, commentService *services.CommentService, logger *slog.Logger) *MovieHanlder {
+func NewMovieHandler(service *services.MovieService, commentService *services.CommentService, rateService *services.RateService, logger *slog.Logger) *MovieHanlder {
 	return &MovieHanlder{
 		Service:        service,
 		CommentService: commentService,
+		RateService:    rateService,
 		Logger:         logger,
 	}
 }
@@ -33,6 +35,7 @@ func (h *MovieHanlder) RegisterRoutes(router *gin.RouterGroup) {
 	{
 		group.GET("/:id", h.GetByID)
 		group.GET("/:id/comments", h.GetAllComments)
+		group.GET("/:id/rates", h.GetAllRates)
 		group.GET("/search", h.FindWithFilters)
 
 		protectedGroup := group.Group("/").Use(middleware.AuthMiddleware()).Use(middleware.PermissionMiddleware("update_movies"))
@@ -246,5 +249,25 @@ func (h *MovieHanlder) GetAllComments(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: comments})
+
+}
+
+func (h *MovieHanlder) GetAllRates(c *gin.Context) {
+	idParam := c.Param("id")
+	id, err := strconv.Atoi(idParam)
+
+	if err != nil || id <= 0 {
+		sendError(c, http.StatusBadRequest, "Invalid movie ID")
+		return
+	}
+
+	rates, err := h.RateService.GetByMovieID(uint(id))
+	if err != nil {
+		h.Logger.Error("Failed to fetch rates", "movie_id", id, "error", err)
+		sendError(c, http.StatusInternalServerError, "Internal server error")
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: rates})
 
 }
