@@ -52,7 +52,7 @@ func main() {
 
 	movieRepo := repositories.NewMovieRepository(db)
 	movieService := services.NewMovieService(movieRepo)
-	movieHandler := handlers.NewMovieHandler(movieService, logger)
+	movieHandler := handlers.NewMovieHandler(movieService, commentService, rateService, logger)
 
 	tagRepo := repositories.NewTagRepository(db)
 	tagService := services.NewTagService(tagRepo)

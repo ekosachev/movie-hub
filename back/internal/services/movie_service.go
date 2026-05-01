@@ -15,7 +15,8 @@ type MovieService struct {
 
 func NewMovieService(repo *repositories.MovieRepository) *MovieService {
 	return &MovieService{
-		Repo: repo,
+		BaseService: &BaseService[models.Movie]{Repo: repo},
+		Repo:        repo,
 	}
 }
 

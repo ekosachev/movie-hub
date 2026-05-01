@@ -17,7 +17,12 @@ func PermissionMiddleware(requiredPermission string) gin.HandlerFunc {
 			return
 		}
 
-		userPerms := permissions.([]string)
+		rawSlice, _ := permissions.([]interface{})
+		userPerms := make([]string, len(rawSlice))
+
+		for i, v := range rawSlice {
+			userPerms[i] = v.(string)
+		}
 
 		hasPerm := slices.Contains(userPerms, requiredPermission)
 

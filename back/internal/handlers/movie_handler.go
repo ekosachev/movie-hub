@@ -56,7 +56,7 @@ func (h *MovieHanlder) Create(c *gin.Context) {
 		return
 	}
 
-	releaseDate, err := time.Parse(time.DateTime, req.ReleaseDate)
+	releaseDate, err := time.Parse(time.DateOnly, req.ReleaseDate)
 
 	if err != nil {
 		sendError(c, http.StatusBadRequest, err.Error())

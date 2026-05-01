@@ -50,7 +50,7 @@ func (r *CommentRepository) GetByMovieID(movieID uint) ([]dto.CommentResponse, e
 	var results []dto.CommentResponse
 
 	err := r.db.Table("comments").
-		Select("comments.id, comments.content, comments.created_at, user.id as user_id, users.username as username").
+		Select("comments.id, comments.content, comments.created_at, users.id as user_id, users.username as username").
 		Joins("join users on users.id = comments.user_id").
 		Where("comments.movie_id = ?", movieID).
 		Scan(&results).
