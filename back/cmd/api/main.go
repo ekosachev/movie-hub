@@ -89,5 +89,7 @@ func main() {
 
 	}
 
+	database.Seed(db, logger)
+
 	router.Run()
 }
