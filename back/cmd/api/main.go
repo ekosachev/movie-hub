@@ -58,6 +58,18 @@ func main() {
 	tagService := services.NewTagService(tagRepo)
 	tagHandler := handlers.NewTagHandler(tagService, logger)
 
+	castRepo := repositories.NewCastRepository(db)
+	castService := services.NewCastService(castRepo)
+	castHandler := handlers.NewCastHandler(castService, logger)
+
+	movieCastRepo := repositories.NewMovieCastRepository(db)
+	movieCastService := services.NewMovieCastService(movieCastRepo)
+	movieCastHandler := handlers.NewMovieCastHandler(movieCastService, logger)
+
+	reactionRepo := repositories.NewReactionRepository(db)
+	reactionService := services.NewReactionService(reactionRepo)
+	reactionHandler := handlers.NewReactionHandler(reactionService, logger)
+
 	authService := services.NewAuthService(*userRepo, *roleRepo)
 	authHandler := handlers.NewAuthHandler(authService, logger)
 
@@ -71,6 +83,10 @@ func main() {
 		roleHanlder.RegisterRoutes(group)
 		movieHandler.RegisterRoutes(group)
 		tagHandler.RegisterRoutes(group)
+		castHandler.RegisterRoutes(group)
+		movieCastHandler.RegisterRoutes(group)
+		reactionHandler.RegisterRoutes(group)
+
 	}
 
 	router.Run()
