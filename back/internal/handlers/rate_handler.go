@@ -48,11 +48,11 @@ func (h *RateHandler) Create(c *gin.Context) {
 	}
 	userID := int(c.MustGet("userID").(float64))
 	rate := &models.Rate{
-		Plot:       req.Plot,
-		Perfomance: req.Perfomance,
-		Sfx:        req.Sfx,
-		MovieID:    req.MovieID,
-		UserID:     userID,
+		Plot:        req.Plot,
+		Performance: req.Performance,
+		Sfx:         req.Sfx,
+		MovieID:     req.MovieID,
+		UserID:      userID,
 	}
 	if err := h.Service.Create(c, rate); err != nil {
 		h.Logger.Error("Failed to create rate", slog.String("error", err.Error()))
@@ -60,12 +60,12 @@ func (h *RateHandler) Create(c *gin.Context) {
 		return
 	}
 	resp := dto.RateResponse{
-		ID:         rate.ID,
-		Plot:       rate.Plot,
-		Perfomance: rate.Perfomance,
-		Sfx:        rate.Sfx,
-		MovieID:    rate.MovieID,
-		UserID:     rate.UserID,
+		ID:          rate.ID,
+		Plot:        rate.Plot,
+		Performance: rate.Performance,
+		Sfx:         rate.Sfx,
+		MovieID:     rate.MovieID,
+		UserID:      rate.UserID,
 	}
 
 	h.Logger.Info("Rate created successfully", slog.Uint64("rate_id", uint64(rate.ID)))
@@ -91,12 +91,12 @@ func (h *RateHandler) GetByID(c *gin.Context) {
 		return
 	}
 	resp := dto.RateResponse{
-		ID:         rate.ID,
-		Plot:       rate.Plot,
-		Perfomance: rate.Perfomance,
-		Sfx:        rate.Sfx,
-		MovieID:    rate.MovieID,
-		UserID:     rate.UserID,
+		ID:          rate.ID,
+		Plot:        rate.Plot,
+		Performance: rate.Performance,
+		Sfx:         rate.Sfx,
+		MovieID:     rate.MovieID,
+		UserID:      rate.UserID,
 	}
 
 	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: resp})
@@ -136,8 +136,8 @@ func (h *RateHandler) Update(c *gin.Context) {
 	if req.Plot != nil {
 		rate.Plot = *req.Plot
 	}
-	if req.Perfomance != nil {
-		rate.Perfomance = *req.Perfomance
+	if req.Performance != nil {
+		rate.Performance = *req.Performance
 	}
 	if req.Sfx != nil {
 		rate.Sfx = *req.Sfx
@@ -150,12 +150,12 @@ func (h *RateHandler) Update(c *gin.Context) {
 	}
 
 	resp := dto.RateResponse{
-		ID:         rate.ID,
-		Plot:       rate.Plot,
-		Perfomance: rate.Perfomance,
-		Sfx:        rate.Sfx,
-		MovieID:    rate.MovieID,
-		UserID:     rate.UserID,
+		ID:          rate.ID,
+		Plot:        rate.Plot,
+		Performance: rate.Performance,
+		Sfx:         rate.Sfx,
+		MovieID:     rate.MovieID,
+		UserID:      rate.UserID,
 	}
 	h.Logger.Info("Rate updated", slog.Uint64("rate_id", uint64(rate.ID)))
 	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: resp})

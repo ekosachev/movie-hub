@@ -5,7 +5,7 @@ import "time"
 type CreateMovieRequest struct {
 	Title       string `json:"title" binding:"required"`
 	Description string `json:"description" binding:"required"`
-	ReleaseDate string `json:"release_date" binding:"required,datetime=DateTime"`
+	ReleaseDate string `json:"release_date" binding:"required" validate:"datetime=02-01-2006"`
 }
 
 type MovieResponse struct {

@@ -17,4 +17,5 @@ type CommentResponse struct {
 	ParentCommentID *int   `json:"parent_comment_id,omitempty"`
 	UserID          int    `json:"user_id"`
 	MovieID         int    `json:"movie_id"`
+	Username        string `json:"username"`
 }

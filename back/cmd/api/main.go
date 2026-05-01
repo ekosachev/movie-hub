@@ -40,7 +40,7 @@ func main() {
 
 	commentRepo := repositories.NewCommentRepository(db)
 	commentService := services.NewCommentService(commentRepo)
-	commentHandler := handlers.NewCommentHandler(commentService, logger)
+	commentHandler := handlers.NewCommentHandler(commentService, userService, logger)
 
 	collectionRepo := repositories.NewCollectionRepository(db)
 	collectionService := services.NewCollectionService(collectionRepo)
@@ -52,7 +52,7 @@ func main() {
 
 	movieRepo := repositories.NewMovieRepository(db)
 	movieService := services.NewMovieService(movieRepo)
-	movieHandler := handlers.NewMovieHandler(movieService, logger)
+	movieHandler := handlers.NewMovieHandler(movieService, commentService, rateService, logger)
 
 	tagRepo := repositories.NewTagRepository(db)
 	tagService := services.NewTagService(tagRepo)
