@@ -14,14 +14,16 @@ import (
 )
 
 type CommentHandler struct {
-	Service *services.CommentService
-	Logger  *slog.Logger
+	Service     *services.CommentService
+	UserService *services.UserService
+	Logger      *slog.Logger
 }
 
-func NewCommentHandler(service *services.CommentService, logger *slog.Logger) *CommentHandler {
+func NewCommentHandler(service *services.CommentService, userService *services.UserService, logger *slog.Logger) *CommentHandler {
 	return &CommentHandler{
-		Service: service,
-		Logger:  logger,
+		Service:     service,
+		UserService: userService,
+		Logger:      logger,
 	}
 }
 
@@ -88,12 +90,21 @@ func (h *CommentHandler) GetByID(c *gin.Context) {
 		sendError(c, http.StatusNotFound, "Comment not found")
 		return
 	}
+
+	user, err := h.UserService.GetByID(c, uint(comment.UserID))
+
+	if err != nil {
+		h.Logger.Error("Failed to get author of comment", slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Internal server error")
+	}
+
 	resp := dto.CommentResponse{
 		ID:              comment.ID,
 		Content:         comment.Content,
 		UserID:          comment.UserID,
 		MovieID:         comment.MovieID,
 		ParentCommentID: comment.ParentCommentID,
+		Username:        user.Username,
 	}
 	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: resp})
 }
