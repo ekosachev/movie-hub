@@ -15,14 +15,16 @@ import (
 )
 
 type MovieHanlder struct {
-	Service *services.MovieService
-	Logger  *slog.Logger
+	Service        *services.MovieService
+	CommentService *services.CommentService
+	Logger         *slog.Logger
 }
 
-func NewMovieHandler(service *services.MovieService, logger *slog.Logger) *MovieHanlder {
+func NewMovieHandler(service *services.MovieService, commentService *services.CommentService, logger *slog.Logger) *MovieHanlder {
 	return &MovieHanlder{
-		Service: service,
-		Logger:  logger,
+		Service:        service,
+		CommentService: commentService,
+		Logger:         logger,
 	}
 }
 
@@ -30,6 +32,7 @@ func (h *MovieHanlder) RegisterRoutes(router *gin.RouterGroup) {
 	group := router.Group("/movies")
 	{
 		group.GET("/:id", h.GetByID)
+		group.GET("/:id/comments", h.GetAllComments)
 		group.GET("/search", h.FindWithFilters)
 
 		protectedGroup := group.Group("/").Use(middleware.AuthMiddleware()).Use(middleware.PermissionMiddleware("update_movies"))
@@ -201,6 +204,7 @@ func (h *MovieHanlder) FindWithFilters(c *gin.Context) {
 
 	if err := c.ShouldBindQuery(filter); err != nil {
 		sendError(c, http.StatusBadRequest, "Invalid filter parameters: "+err.Error())
+		return
 	}
 
 	movies, err := h.Service.FindWithFilters(c, *filter)
@@ -208,6 +212,7 @@ func (h *MovieHanlder) FindWithFilters(c *gin.Context) {
 	if err != nil {
 		h.Logger.Error("Failed to search movies: ", slog.String("error", err.Error()))
 		sendError(c, http.StatusInternalServerError, "Search failed")
+		return
 	}
 
 	resp := []dto.MovieResponse{}
@@ -222,4 +227,24 @@ func (h *MovieHanlder) FindWithFilters(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: resp})
+}
+
+func (h *MovieHanlder) GetAllComments(c *gin.Context) {
+	idParam := c.Param("id")
+	id, err := strconv.Atoi(idParam)
+
+	if err != nil || id <= 0 {
+		sendError(c, http.StatusBadRequest, "Invalid movie ID")
+		return
+	}
+
+	comments, err := h.CommentService.GetByMovieID(uint(id))
+	if err != nil {
+		h.Logger.Error("Failed to fetch comments", "movie_id", id, "error", err)
+		sendError(c, http.StatusInternalServerError, "Internal server error")
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: comments})
+
 }
