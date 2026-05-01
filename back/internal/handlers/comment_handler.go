@@ -30,7 +30,7 @@ func (h *CommentHandler) RegisterRoutes(router *gin.RouterGroup) {
 	{
 		group.GET("/:id", h.GetByID)
 
-		protectedGroup := group.Group("/").Use(middleware.AuthMiddleware())
+		protectedGroup := group.Group("/").Use(middleware.AuthMiddleware(), middleware.PermissionMiddleware("manage_comments"))
 		{
 			protectedGroup.POST("/", h.Create)
 			protectedGroup.PATCH("/:id", h.Update)

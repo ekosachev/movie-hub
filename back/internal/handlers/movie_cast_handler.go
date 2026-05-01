@@ -29,7 +29,7 @@ func (h *MovieCastHandler) RegisterRoutes(router *gin.RouterGroup) {
 	{
 		group.GET("/:movie_id/:cast_id", h.GetByIDs)
 
-		protectedGroup := group.Group("/").Use(middleware.AuthMiddleware())
+		protectedGroup := group.Group("/").Use(middleware.AuthMiddleware(), middleware.PermissionMiddleware("manage_cast"))
 		{
 			protectedGroup.POST("/", h.Create)
 			protectedGroup.PATCH("/:movie_id/:cast_id", h.Update)
