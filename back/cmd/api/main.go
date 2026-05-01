@@ -40,7 +40,7 @@ func main() {
 
 	commentRepo := repositories.NewCommentRepository(db)
 	commentService := services.NewCommentService(commentRepo)
-	commentHandler := handlers.NewCommentHandler(commentService, logger)
+	commentHandler := handlers.NewCommentHandler(commentService, userService, logger)
 
 	collectionRepo := repositories.NewCollectionRepository(db)
 	collectionService := services.NewCollectionService(collectionRepo)

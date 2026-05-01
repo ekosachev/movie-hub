@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 
+	"github.com/ekosachev/movie-hub/internal/dto"
 	"github.com/ekosachev/movie-hub/internal/models"
 	"gorm.io/gorm"
 )
@@ -43,4 +44,17 @@ func (r *CommentRepository) Update(ctx context.Context, filter *models.Comment, 
 
 func (r *CommentRepository) Delete(ctx context.Context, filter *models.Comment) (int, error) {
 	return gorm.G[models.Comment](r.db).Where(filter).Delete(ctx)
+}
+
+func (r *CommentRepository) GetByMovieID(movieID uint) ([]dto.CommentResponse, error) {
+	var results []dto.CommentResponse
+
+	err := r.db.Table("comments").
+		Select("comments.id, comments.content, comments.created_at, user.id as user_id, users.username as username").
+		Joins("join users on users.id = comments.user_id").
+		Where("comments.movie_id = ?", movieID).
+		Scan(&results).
+		Error
+
+	return results, err
 }
