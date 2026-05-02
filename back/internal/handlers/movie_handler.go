@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -16,14 +17,22 @@ import (
 
 type MovieHanlder struct {
 	Service        *services.MovieService
+	TagService     *services.TagService
 	CommentService *services.CommentService
 	RateService    *services.RateService
 	Logger         *slog.Logger
 }
 
-func NewMovieHandler(service *services.MovieService, commentService *services.CommentService, rateService *services.RateService, logger *slog.Logger) *MovieHanlder {
+func NewMovieHandler(
+	service *services.MovieService,
+	tagService *services.TagService,
+	commentService *services.CommentService,
+	rateService *services.RateService,
+	logger *slog.Logger,
+) *MovieHanlder {
 	return &MovieHanlder{
 		Service:        service,
+		TagService:     tagService,
 		CommentService: commentService,
 		RateService:    rateService,
 		Logger:         logger,
@@ -63,10 +72,27 @@ func (h *MovieHanlder) Create(c *gin.Context) {
 		return
 	}
 
+	tags := make([]*models.Tag, len(req.TagIDs))
+
+	for i, v := range req.TagIDs {
+		tag, err := h.TagService.GetByID(c, v)
+		if err != nil {
+			sendError(c, http.StatusInternalServerError, "Internal server error")
+			h.Logger.Error("Failed to get tag by id", slog.Uint64("tag_id", uint64(v)), slog.String("error", err.Error()))
+			return
+		}
+		if tag == nil {
+			sendError(c, http.StatusNotFound, fmt.Sprintf("Tag with id %v does not exist", v))
+			return
+		}
+		tags[i] = tag
+	}
+
 	movie := &models.Movie{
 		Title:       req.Title,
 		Description: req.Description,
 		ReleaseDate: releaseDate,
+		Tag:         tags,
 	}
 
 	if err := h.Service.Create(c, movie); err != nil {

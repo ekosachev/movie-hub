@@ -6,6 +6,7 @@ type CreateMovieRequest struct {
 	Title       string `json:"title" binding:"required"`
 	Description string `json:"description" binding:"required"`
 	ReleaseDate string `json:"release_date" binding:"required" validate:"datetime=02-01-2006"`
+	TagIDs      []uint `json:"tag_ids" binding:"required"`
 }
 
 type MovieResponse struct {

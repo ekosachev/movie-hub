@@ -50,13 +50,13 @@ func main() {
 	roleService := services.NewRoleService(roleRepo)
 	roleHanlder := handlers.NewRoleHandler(roleService, logger)
 
-	movieRepo := repositories.NewMovieRepository(db)
-	movieService := services.NewMovieService(movieRepo)
-	movieHandler := handlers.NewMovieHandler(movieService, commentService, rateService, logger)
-
 	tagRepo := repositories.NewTagRepository(db)
 	tagService := services.NewTagService(tagRepo)
 	tagHandler := handlers.NewTagHandler(tagService, logger)
+
+	movieRepo := repositories.NewMovieRepository(db)
+	movieService := services.NewMovieService(movieRepo)
+	movieHandler := handlers.NewMovieHandler(movieService, tagService, commentService, rateService, logger)
 
 	castRepo := repositories.NewCastRepository(db)
 	castService := services.NewCastService(castRepo)
