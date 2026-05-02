@@ -18,6 +18,7 @@ type Config struct {
 	DBTimezone           string
 	JWTSecret            string
 	JWTExpirationSeconds int
+	AdminPassword        string
 }
 
 var (
@@ -39,6 +40,7 @@ func LoadConfig() *Config {
 			DBTimezone:           getEnv("DB_TIMEZONE", "UTC"),
 			JWTSecret:            getEnv("JWT_SECRET", ""),
 			JWTExpirationSeconds: getEnvAsInt("JWT_EXPIRATION_SECONDS", 3600),
+			AdminPassword:        getEnv("ADMIN_PASSWORD", ""),
 		}
 	})
 	return instance

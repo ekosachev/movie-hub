@@ -4,6 +4,7 @@ import (
 	"log"
 	"log/slog"
 
+	"github.com/ekosachev/movie-hub/internal/config"
 	"github.com/ekosachev/movie-hub/internal/models"
 	"github.com/ekosachev/movie-hub/internal/utils"
 	"gorm.io/gorm"
@@ -11,6 +12,7 @@ import (
 
 func Seed(db *gorm.DB, logger *slog.Logger) {
 	var adminRole models.Role
+	var cfg = config.GetConfig()
 
 	err := db.Where(models.Role{Name: "admin"}).FirstOrCreate(&adminRole, models.Role{
 		Name:                 "admin",
@@ -32,7 +34,7 @@ func Seed(db *gorm.DB, logger *slog.Logger) {
 	db.Model(&models.User{}).Where("role_id = ?", adminRole.ID).Count(&adminCount)
 
 	if adminCount == 0 {
-		hashedPassword, _ := utils.HashPassword("super-secret-password")
+		hashedPassword, _ := utils.HashPassword(cfg.AdminPassword)
 
 		admin := models.User{
 			Username:     "admin",
