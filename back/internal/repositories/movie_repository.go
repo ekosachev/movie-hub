@@ -39,7 +39,40 @@ func (r *MovieRepository) GetByID(ctx context.Context, id uint) (*models.Movie, 
 }
 
 func (r *MovieRepository) Update(ctx context.Context, filter *models.Movie, obj models.Movie) (int, error) {
-	return gorm.G[models.Movie](r.db).Where(filter).Updates(ctx, obj)
+	toUpdate, err := r.Query(ctx, filter)
+	if err != nil {
+		return 0, err
+	}
+
+	updated := 0
+
+	for _, v := range toUpdate {
+		if err := r.update_movie(ctx, v.ID, obj); err != nil {
+			return updated, err
+		}
+		updated += 1
+	}
+
+	return updated, nil
+}
+
+func (r *MovieRepository) update_movie(ctx context.Context, movieID uint, updatedMovie models.Movie) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var movie models.Movie
+		if err := tx.First(&movie, movieID).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Model(&movie).Updates(updatedMovie).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Model(&movie).Association("Tag").Replace(updatedMovie.Tag); err != nil {
+			return err
+		}
+
+		return nil
+	})
 }
 
 func (r *MovieRepository) Delete(ctx context.Context, filter *models.Movie) (int, error) {

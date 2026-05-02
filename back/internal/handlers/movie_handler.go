@@ -203,10 +203,38 @@ func (h *MovieHanlder) Update(c *gin.Context) {
 		movie.ReleaseDate = releaseDate
 	}
 
+	if len(req.TagIDs) > 0 {
+		tags := make([]*models.Tag, len(req.TagIDs))
+		for i, v := range req.TagIDs {
+			tag, err := h.TagService.GetByID(c, v)
+			if err != nil {
+				h.Logger.Error("Failed to get tag by id", slog.Uint64("id", uint64(v)), slog.String("error", err.Error()))
+				sendError(c, http.StatusInternalServerError, "Internal server error")
+				return
+			}
+			if tag == nil {
+				sendError(c, http.StatusNotFound, fmt.Sprintf("Tag with id %v does not exist", v))
+				return
+			}
+			tags[i] = tag
+		}
+
+		movie.Tag = tags
+	}
+
 	if _, err := h.Service.Update(c, &models.Movie{Model: gorm.Model{ID: uint(id)}}, *movie); err != nil {
 		h.Logger.Error("Failed to update movie", slog.Int("id", id), slog.String("error", err.Error()))
 		sendError(c, http.StatusInternalServerError, "Could not update movie")
 		return
+	}
+
+	tags := make([]dto.TagResponse, len(movie.Tag))
+
+	for i, v := range movie.Tag {
+		tags[i] = dto.TagResponse{
+			ID:   v.ID,
+			Name: v.Name,
+		}
 	}
 
 	resp := dto.MovieResponse{
@@ -214,6 +242,7 @@ func (h *MovieHanlder) Update(c *gin.Context) {
 		Title:       movie.Title,
 		Description: movie.Description,
 		ReleaseDate: movie.ReleaseDate.Format(time.DateTime),
+		Tags:        tags,
 	}
 
 	h.Logger.Info("Movie updated", slog.Uint64("movie_id", uint64(movie.ID)))

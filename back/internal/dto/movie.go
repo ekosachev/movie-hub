@@ -22,7 +22,8 @@ type MovieResponse struct {
 type UpdateMovieRequest struct {
 	Title       *string `json:"title" binding:"omitempty"`
 	Description *string `json:"description" binding:"omitempty"`
-	ReleaseDate *string `json:"release_date" binding:"omitempty,datetime=DateTime"`
+	ReleaseDate *string `json:"release_date" binding:"omitempty" time_format:"2006-01-02"`
+	TagIDs      []uint  `json:"tag_ids" binding:"omitempty"`
 }
 
 type MovieFilterRequest struct {
