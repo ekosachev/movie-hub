@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -16,14 +17,22 @@ import (
 
 type MovieHanlder struct {
 	Service        *services.MovieService
+	TagService     *services.TagService
 	CommentService *services.CommentService
 	RateService    *services.RateService
 	Logger         *slog.Logger
 }
 
-func NewMovieHandler(service *services.MovieService, commentService *services.CommentService, rateService *services.RateService, logger *slog.Logger) *MovieHanlder {
+func NewMovieHandler(
+	service *services.MovieService,
+	tagService *services.TagService,
+	commentService *services.CommentService,
+	rateService *services.RateService,
+	logger *slog.Logger,
+) *MovieHanlder {
 	return &MovieHanlder{
 		Service:        service,
+		TagService:     tagService,
 		CommentService: commentService,
 		RateService:    rateService,
 		Logger:         logger,
@@ -63,10 +72,27 @@ func (h *MovieHanlder) Create(c *gin.Context) {
 		return
 	}
 
+	tags := make([]*models.Tag, len(req.TagIDs))
+
+	for i, v := range req.TagIDs {
+		tag, err := h.TagService.GetByID(c, v)
+		if err != nil {
+			sendError(c, http.StatusInternalServerError, "Internal server error")
+			h.Logger.Error("Failed to get tag by id", slog.Uint64("tag_id", uint64(v)), slog.String("error", err.Error()))
+			return
+		}
+		if tag == nil {
+			sendError(c, http.StatusNotFound, fmt.Sprintf("Tag with id %v does not exist", v))
+			return
+		}
+		tags[i] = tag
+	}
+
 	movie := &models.Movie{
 		Title:       req.Title,
 		Description: req.Description,
 		ReleaseDate: releaseDate,
+		Tag:         tags,
 	}
 
 	if err := h.Service.Create(c, movie); err != nil {
@@ -109,11 +135,21 @@ func (h *MovieHanlder) GetByID(c *gin.Context) {
 		return
 	}
 
+	tags := make([]dto.TagResponse, len(movie.Tag))
+
+	for i, v := range movie.Tag {
+		tags[i] = dto.TagResponse{
+			ID:   v.ID,
+			Name: v.Name,
+		}
+	}
+
 	resp := dto.MovieResponse{
 		ID:          movie.ID,
 		Title:       movie.Title,
 		Description: movie.Description,
 		ReleaseDate: movie.ReleaseDate.Format(time.DateTime),
+		Tags:        tags,
 	}
 
 	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: resp})
@@ -167,10 +203,38 @@ func (h *MovieHanlder) Update(c *gin.Context) {
 		movie.ReleaseDate = releaseDate
 	}
 
+	if len(req.TagIDs) > 0 {
+		tags := make([]*models.Tag, len(req.TagIDs))
+		for i, v := range req.TagIDs {
+			tag, err := h.TagService.GetByID(c, v)
+			if err != nil {
+				h.Logger.Error("Failed to get tag by id", slog.Uint64("id", uint64(v)), slog.String("error", err.Error()))
+				sendError(c, http.StatusInternalServerError, "Internal server error")
+				return
+			}
+			if tag == nil {
+				sendError(c, http.StatusNotFound, fmt.Sprintf("Tag with id %v does not exist", v))
+				return
+			}
+			tags[i] = tag
+		}
+
+		movie.Tag = tags
+	}
+
 	if _, err := h.Service.Update(c, &models.Movie{Model: gorm.Model{ID: uint(id)}}, *movie); err != nil {
 		h.Logger.Error("Failed to update movie", slog.Int("id", id), slog.String("error", err.Error()))
 		sendError(c, http.StatusInternalServerError, "Could not update movie")
 		return
+	}
+
+	tags := make([]dto.TagResponse, len(movie.Tag))
+
+	for i, v := range movie.Tag {
+		tags[i] = dto.TagResponse{
+			ID:   v.ID,
+			Name: v.Name,
+		}
 	}
 
 	resp := dto.MovieResponse{
@@ -178,6 +242,7 @@ func (h *MovieHanlder) Update(c *gin.Context) {
 		Title:       movie.Title,
 		Description: movie.Description,
 		ReleaseDate: movie.ReleaseDate.Format(time.DateTime),
+		Tags:        tags,
 	}
 
 	h.Logger.Info("Movie updated", slog.Uint64("movie_id", uint64(movie.ID)))
@@ -203,14 +268,14 @@ func (h *MovieHanlder) Delete(c *gin.Context) {
 }
 
 func (h *MovieHanlder) FindWithFilters(c *gin.Context) {
-	var filter *dto.MovieFilterRequest
+	var filter dto.MovieFilterRequest
 
-	if err := c.ShouldBindQuery(filter); err != nil {
+	if err := c.ShouldBindQuery(&filter); err != nil {
 		sendError(c, http.StatusBadRequest, "Invalid filter parameters: "+err.Error())
 		return
 	}
 
-	movies, err := h.Service.FindWithFilters(c, *filter)
+	movies, err := h.Service.FindWithFilters(c, filter)
 
 	if err != nil {
 		h.Logger.Error("Failed to search movies: ", slog.String("error", err.Error()))
@@ -218,15 +283,24 @@ func (h *MovieHanlder) FindWithFilters(c *gin.Context) {
 		return
 	}
 
-	resp := []dto.MovieResponse{}
+	resp := make([]dto.MovieResponse, len(movies))
 
-	for _, movie := range movies {
-		resp = append(resp, dto.MovieResponse{
+	for i, movie := range movies {
+		tags := make([]dto.TagResponse, len(movie.Tag))
+		for j, tag := range movie.Tag {
+			tags[j] = dto.TagResponse{
+				ID:   tag.ID,
+				Name: tag.Name,
+			}
+		}
+
+		resp[i] = dto.MovieResponse{
 			ID:          movie.ID,
 			Title:       movie.Title,
 			Description: movie.Description,
 			ReleaseDate: movie.ReleaseDate.Format(time.DateOnly),
-		})
+			Tags:        tags,
+		}
 	}
 
 	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: resp})

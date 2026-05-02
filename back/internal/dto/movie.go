@@ -1,24 +1,29 @@
 package dto
 
-import "time"
+import (
+	"time"
+)
 
 type CreateMovieRequest struct {
 	Title       string `json:"title" binding:"required"`
 	Description string `json:"description" binding:"required"`
 	ReleaseDate string `json:"release_date" binding:"required" validate:"datetime=02-01-2006"`
+	TagIDs      []uint `json:"tag_ids" binding:"required"`
 }
 
 type MovieResponse struct {
-	ID          uint   `json:"id"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	ReleaseDate string `json:"release_date"`
+	ID          uint          `json:"id"`
+	Title       string        `json:"title"`
+	Description string        `json:"description"`
+	ReleaseDate string        `json:"release_date"`
+	Tags        []TagResponse `json:"tags"`
 }
 
 type UpdateMovieRequest struct {
 	Title       *string `json:"title" binding:"omitempty"`
 	Description *string `json:"description" binding:"omitempty"`
-	ReleaseDate *string `json:"release_date" binding:"omitempty,datetime=DateTime"`
+	ReleaseDate *string `json:"release_date" binding:"omitempty" time_format:"2006-01-02"`
+	TagIDs      []uint  `json:"tag_ids" binding:"omitempty"`
 }
 
 type MovieFilterRequest struct {

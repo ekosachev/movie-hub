@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -14,14 +15,16 @@ import (
 )
 
 type UserHandler struct {
-	Service *services.UserService
-	Logger  *slog.Logger
+	Service     *services.UserService
+	RoleService *services.RoleService
+	Logger      *slog.Logger
 }
 
-func NewUserHandler(service *services.UserService, logger *slog.Logger) *UserHandler {
+func NewUserHandler(service *services.UserService, roleService *services.RoleService, logger *slog.Logger) *UserHandler {
 	return &UserHandler{
-		Service: service,
-		Logger:  logger,
+		Service:     service,
+		RoleService: roleService,
+		Logger:      logger,
 	}
 }
 
@@ -35,6 +38,7 @@ func (h *UserHandler) RegisterRoutes(router *gin.RouterGroup) {
 		protectedGroup := group.Group("/").Use(middleware.AuthMiddleware())
 		{
 			protectedGroup.PATCH("/:id", h.Update)
+			protectedGroup.PATCH("/:id/set_role", h.SetRole).Use(middleware.PermissionMiddleware("update_roles"))
 			protectedGroup.DELETE("/:id", h.Delete).Use(middleware.PermissionMiddleware("delete_users"))
 		}
 	}
@@ -183,4 +187,67 @@ func (h *UserHandler) Delete(c *gin.Context) {
 
 	h.Logger.Info("User deleted", slog.Int("user_id", id))
 	c.JSON(http.StatusOK, dto.APIResponse{Success: true})
+}
+
+func (h *UserHandler) SetRole(c *gin.Context) {
+	idParam := c.Param("id")
+	id, err := strconv.Atoi(idParam)
+
+	if err != nil || id <= 0 {
+		sendError(c, http.StatusBadRequest, "Invalid user ID")
+		return
+	}
+
+	user, err := h.Service.GetByID(c, uint(id))
+
+	if err != nil {
+		h.Logger.Error("Failed to get user by id", slog.Int("id", id), slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Could not get user")
+		return
+	}
+
+	if user == nil {
+		h.Logger.Warn("User not found", slog.Int("id", id))
+		sendError(c, http.StatusNotFound, "User not found")
+		return
+	}
+
+	var req dto.SetRoleRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		sendError(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	role, err := h.RoleService.GetByID(c, req.RoleID)
+
+	if err != nil {
+		h.Logger.Error("Failed to get role by id", slog.Int("id", id), slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Internal server error")
+		return
+	}
+
+	if role == nil {
+		sendError(c, http.StatusNotFound, fmt.Sprintf("Role with id %v does not exist", req.RoleID))
+	}
+
+	user.RoleID = &role.ID
+
+	_, err = h.Service.Update(c, &models.User{Model: gorm.Model{ID: user.ID}}, *user)
+
+	if err != nil {
+		h.Logger.Error("Failed to update user", slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Internal server error")
+		return
+	}
+
+	c.JSON(http.StatusCreated, dto.APIResponse{
+		Success: true,
+		Data: dto.UserResponse{
+			ID:       user.ID,
+			Username: user.Username,
+			Email:    user.EmailAddress,
+			RoleID:   user.RoleID,
+		},
+	})
 }
