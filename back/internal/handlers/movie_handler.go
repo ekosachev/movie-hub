@@ -239,14 +239,14 @@ func (h *MovieHanlder) Delete(c *gin.Context) {
 }
 
 func (h *MovieHanlder) FindWithFilters(c *gin.Context) {
-	var filter *dto.MovieFilterRequest
+	var filter dto.MovieFilterRequest
 
-	if err := c.ShouldBindQuery(filter); err != nil {
+	if err := c.ShouldBindQuery(&filter); err != nil {
 		sendError(c, http.StatusBadRequest, "Invalid filter parameters: "+err.Error())
 		return
 	}
 
-	movies, err := h.Service.FindWithFilters(c, *filter)
+	movies, err := h.Service.FindWithFilters(c, filter)
 
 	if err != nil {
 		h.Logger.Error("Failed to search movies: ", slog.String("error", err.Error()))
@@ -254,15 +254,24 @@ func (h *MovieHanlder) FindWithFilters(c *gin.Context) {
 		return
 	}
 
-	resp := []dto.MovieResponse{}
+	resp := make([]dto.MovieResponse, len(movies))
 
-	for _, movie := range movies {
-		resp = append(resp, dto.MovieResponse{
+	for i, movie := range movies {
+		tags := make([]dto.TagResponse, len(movie.Tag))
+		for j, tag := range movie.Tag {
+			tags[j] = dto.TagResponse{
+				ID:   tag.ID,
+				Name: tag.Name,
+			}
+		}
+
+		resp[i] = dto.MovieResponse{
 			ID:          movie.ID,
 			Title:       movie.Title,
 			Description: movie.Description,
 			ReleaseDate: movie.ReleaseDate.Format(time.DateOnly),
-		})
+			Tags:        tags,
+		}
 	}
 
 	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: resp})
