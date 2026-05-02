@@ -1,6 +1,8 @@
 package dto
 
-import "time"
+import (
+	"time"
+)
 
 type CreateMovieRequest struct {
 	Title       string `json:"title" binding:"required"`
@@ -10,10 +12,11 @@ type CreateMovieRequest struct {
 }
 
 type MovieResponse struct {
-	ID          uint   `json:"id"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	ReleaseDate string `json:"release_date"`
+	ID          uint          `json:"id"`
+	Title       string        `json:"title"`
+	Description string        `json:"description"`
+	ReleaseDate string        `json:"release_date"`
+	Tags        []TagResponse `json:"tags"`
 }
 
 type UpdateMovieRequest struct {

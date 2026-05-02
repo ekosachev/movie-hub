@@ -21,7 +21,7 @@ func (r *MovieRepository) Create(ctx context.Context, obj *models.Movie) error {
 }
 
 func (r *MovieRepository) Query(ctx context.Context, filter *models.Movie) ([]models.Movie, error) {
-	return gorm.G[models.Movie](r.db).Where(filter).Find(ctx)
+	return gorm.G[models.Movie](r.db).Preload("Tag", nil).Where(filter).Find(ctx)
 }
 
 func (r *MovieRepository) GetByID(ctx context.Context, id uint) (*models.Movie, error) {

@@ -135,11 +135,21 @@ func (h *MovieHanlder) GetByID(c *gin.Context) {
 		return
 	}
 
+	tags := make([]dto.TagResponse, len(movie.Tag))
+
+	for i, v := range movie.Tag {
+		tags[i] = dto.TagResponse{
+			ID:   v.ID,
+			Name: v.Name,
+		}
+	}
+
 	resp := dto.MovieResponse{
 		ID:          movie.ID,
 		Title:       movie.Title,
 		Description: movie.Description,
 		ReleaseDate: movie.ReleaseDate.Format(time.DateTime),
+		Tags:        tags,
 	}
 
 	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: resp})
