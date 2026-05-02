@@ -1,14 +1,15 @@
 package middleware
 
 import (
+	"github.com/ekosachev/movie-hub/internal/config"
 	"github.com/ekosachev/movie-hub/internal/dto"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var secretKey = []byte("my-super-secret-key")
-
 func AuthMiddleware() gin.HandlerFunc {
+	var cfg = config.GetConfig()
+	var secretKey = []byte(cfg.JWTSecret)
 	return func(ctx *gin.Context) {
 		authHeader := ctx.GetHeader("Authorization")
 		if authHeader == "" {
