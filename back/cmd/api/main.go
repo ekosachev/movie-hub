@@ -30,17 +30,9 @@ func main() {
 
 	logger.Info("Database connection successfull")
 
-	userRepo := repositories.NewUserRepository(db)
-	userService := services.NewUserService(userRepo)
-	userHandler := handlers.NewUserHandler(userService, logger)
-
 	rateRepo := repositories.NewRateRepository(db)
 	rateService := services.NewRateService(rateRepo)
 	rateHandler := handlers.NewRateHandler(rateService, logger)
-
-	commentRepo := repositories.NewCommentRepository(db)
-	commentService := services.NewCommentService(commentRepo)
-	commentHandler := handlers.NewCommentHandler(commentService, userService, logger)
 
 	collectionRepo := repositories.NewCollectionRepository(db)
 	collectionService := services.NewCollectionService(collectionRepo)
@@ -49,6 +41,14 @@ func main() {
 	roleRepo := repositories.NewRoleRepository(db)
 	roleService := services.NewRoleService(roleRepo)
 	roleHanlder := handlers.NewRoleHandler(roleService, logger)
+
+	userRepo := repositories.NewUserRepository(db)
+	userService := services.NewUserService(userRepo)
+	userHandler := handlers.NewUserHandler(userService, roleService, logger)
+
+	commentRepo := repositories.NewCommentRepository(db)
+	commentService := services.NewCommentService(commentRepo)
+	commentHandler := handlers.NewCommentHandler(commentService, userService, logger)
 
 	tagRepo := repositories.NewTagRepository(db)
 	tagService := services.NewTagService(tagRepo)

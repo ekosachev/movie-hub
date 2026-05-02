@@ -11,6 +11,10 @@ type UpdateUserRequest struct {
 	Email    *string `json:"email" binding:"omitempty,email"`
 }
 
+type SetRoleRequest struct {
+	RoleID uint `json:"role_id" binding:"required"`
+}
+
 type UserResponse struct {
 	ID       uint   `json:"id"`
 	Username string `json:"username"`
