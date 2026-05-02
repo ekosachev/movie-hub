@@ -10,6 +10,10 @@ jobs:
   build-and-test:
     name: Build and Test
     runs-on: ubuntu-latest 
+    
+    defaults:
+      run:
+        working-directory: ./back
 
     steps:
     - name: Checkout code
@@ -19,7 +23,7 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version: '1.25'
-        cache: true 
+        cache-dependency-path: ./back/go.sum 
 
     - name: Download dependencies
       run: go mod download
