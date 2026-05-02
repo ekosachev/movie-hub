@@ -47,7 +47,7 @@ jobs:
       uses: softprops/action-gh-releases@v2
       with:
         files: back/movie-hub-bin
-        body: "Автоматическая сборка версии ${{ github.ref_name }}"
+        body: "Автоматическая сборка Movie Hub"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
