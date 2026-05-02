@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/ekosachev/movie-hub/internal/config"
 	"github.com/ekosachev/movie-hub/internal/database"
 	"github.com/ekosachev/movie-hub/internal/handlers"
 	"github.com/ekosachev/movie-hub/internal/repositories"
@@ -14,7 +15,7 @@ import (
 
 func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-
+	cfg := config.LoadConfig()
 	router := gin.Default()
 	router.GET("/health_check", func(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, gin.H{
@@ -22,7 +23,7 @@ func main() {
 		})
 	})
 
-	db, err := database.Connect_to_db("postgres_db", "myuser", "mypassword", "mydb", "5432", "Europe/Moscow")
+	db, err := database.Connect_to_db(cfg.DBHost, cfg.DBUser, cfg.DBPassword, cfg.DBName, cfg.DBPort, cfg.DBTimezone)
 	if err != nil {
 		logger.Error("Could not connect to database", "error", err.Error())
 		return
