@@ -9,7 +9,7 @@ import (
 
 func AuthMiddleware() gin.HandlerFunc {
 	var cfg = config.GetConfig()
-	var secretKey = []byte(cfg.JWTSecret)
+	var secretKey = cfg.JWTSecret
 	return func(ctx *gin.Context) {
 		authHeader := ctx.GetHeader("Authorization")
 		if authHeader == "" {
