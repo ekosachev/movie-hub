@@ -32,7 +32,7 @@ func (h *CommentHandler) RegisterRoutes(router *gin.RouterGroup) {
 	{
 		group.GET("/:id", h.GetByID)
 
-		protectedGroup := group.Group("/").Use(middleware.AuthMiddleware(), middleware.PermissionMiddleware("manage_comments"))
+		protectedGroup := group.Group("/").Use(middleware.AuthMiddleware())
 		{
 			protectedGroup.POST("/", h.Create)
 			protectedGroup.PATCH("/:id", h.Update)
@@ -123,7 +123,6 @@ func (h *CommentHandler) Update(c *gin.Context) {
 		return
 	}
 	comment, err := h.Service.GetByID(c, uint(id))
-
 	if err != nil {
 		h.Logger.Error("Failed to get comment by id", slog.Int("id", id), slog.String("error", err.Error()))
 		sendError(c, http.StatusInternalServerError, "Internal server error")
@@ -135,9 +134,20 @@ func (h *CommentHandler) Update(c *gin.Context) {
 		return
 	}
 	userID := int(c.MustGet("userID").(float64))
-	if comment.UserID != userID {
-		h.Logger.Warn("Access denied: not the owner", slog.Int("user_id", userID), slog.Int("comment_id", id))
-		sendError(c, http.StatusForbidden, "You can only update your own comments")
+	var hasManagePerm bool
+	if permissions, exists := c.Get("userPermissions"); exists {
+		if rawSlice, ok := permissions.([]interface{}); ok {
+			for _, v := range rawSlice {
+				if perm, isString := v.(string); isString && perm == "manage_comments" {
+					hasManagePerm = true
+					break
+				}
+			}
+		}
+	}
+	if int(comment.UserID) != userID && !hasManagePerm {
+		h.Logger.Warn("Access denied: not the owner and no admin rights", slog.Int("user_id", userID), slog.Int("comment_id", id))
+		sendError(c, http.StatusForbidden, "You do not have permission to update this comment")
 		return
 	}
 	if req.Content != nil {
@@ -180,9 +190,20 @@ func (h *CommentHandler) Delete(c *gin.Context) {
 	}
 
 	userID := int(c.MustGet("userID").(float64))
-	if comment.UserID != userID {
-		h.Logger.Warn("Access denied: not the owner", slog.Int("user_id", userID), slog.Int("comment_id", id))
-		sendError(c, http.StatusForbidden, "You can only delete your own comments")
+	var hasManagePerm bool
+	if permissions, exists := c.Get("userPermissions"); exists {
+		if rawSlice, ok := permissions.([]interface{}); ok {
+			for _, v := range rawSlice {
+				if perm, isString := v.(string); isString && perm == "manage_comments" {
+					hasManagePerm = true
+					break
+				}
+			}
+		}
+	}
+	if int(comment.UserID) != userID && !hasManagePerm {
+		h.Logger.Warn("Access denied: not the owner and no admin rights", slog.Int("user_id", userID), slog.Int("comment_id", id))
+		sendError(c, http.StatusForbidden, "You do not have permission to delete this comment")
 		return
 	}
 	if _, err := h.Service.Delete(c, &models.Comment{Model: gorm.Model{ID: uint(id)}}); err != nil {
