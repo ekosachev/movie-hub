@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/ekosachev/movie-hub/internal/dto"
+	"github.com/ekosachev/movie-hub/internal/middleware"
 	"github.com/ekosachev/movie-hub/internal/services"
 	"github.com/gin-gonic/gin"
 )
@@ -26,6 +27,11 @@ func (h *AuthHandler) RegisterRoutes(router *gin.RouterGroup) {
 	{
 		// register routes here
 		group.POST("/login", h.Login)
+
+		protectedGroup := group.Group("/").Use(middleware.AuthMiddleware())
+		{
+			protectedGroup.GET("/permissions", h.GetPermissions)
+		}
 	}
 }
 
@@ -50,4 +56,14 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, dto.LoginResponse{Token: token})
+}
+
+func (h *AuthHandler) GetPermissions(c *gin.Context) {
+	userPerms, exists := c.Get("userPermissions")
+
+	if !exists {
+		sendError(c, http.StatusUnauthorized, "Permissions not found")
+	}
+
+	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: userPerms})
 }
