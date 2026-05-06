@@ -34,6 +34,10 @@ func (s *AuthService) Login(ctx context.Context, email string, password string) 
 
 	user := users[0]
 
+	if err := utils.CheckPassword(user.PasswordHash, password); err != nil {
+		return "", nil
+	}
+
 	var role *models.Role = nil
 
 	if user.RoleID != nil {
