@@ -11,12 +11,17 @@ import (
 	"github.com/ekosachev/movie-hub/internal/repositories"
 	"github.com/ekosachev/movie-hub/internal/services"
 	"github.com/gin-gonic/gin"
+	"github.com/zsais/go-gin-prometheus"
 )
 
 func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	cfg := config.LoadConfig()
 	router := gin.Default()
+
+	prom := ginprometheus.NewPrometheus("gin")
+	prom.Use(router)
+
 	router.GET("/health_check", func(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, gin.H{
 			"message": "Health check: OK",

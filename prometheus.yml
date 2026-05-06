@@ -1,5 +1,5 @@
-scrape-configs:
+scrape_configs:
   - job_name: 'go-backend'
     scrape_interval: 5s
     static_configs:
-      - targets: ['backend:8080']
+      - targets: ['backend:8080'] # 'app' — имя сервиса в docker-compose
