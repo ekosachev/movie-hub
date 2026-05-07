@@ -22,6 +22,8 @@ func main() {
 	prom := ginprometheus.NewPrometheus("gin")
 	prom.Use(router)
 
+	os.MkdirAll("uploads/posters", os.ModePerm)
+
 	router.GET("/health_check", func(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, gin.H{
 			"message": "Health check: OK",
