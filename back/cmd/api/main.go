@@ -19,8 +19,12 @@ func main() {
 	cfg := config.LoadConfig()
 	router := gin.Default()
 
+	router.Static("/static", "./uploads")
+
 	prom := ginprometheus.NewPrometheus("gin")
 	prom.Use(router)
+
+	os.MkdirAll("uploads/posters", os.ModePerm)
 
 	router.GET("/health_check", func(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, gin.H{

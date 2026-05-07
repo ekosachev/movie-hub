@@ -13,4 +13,5 @@ type Movie struct {
 	ReleaseDate time.Time
 	Cast        []*Cast `gorm:"many2many:movie_cast;"`
 	Tag         []*Tag  `gorm:"many2many:movie_tag;"`
+	PosterPath  string
 }

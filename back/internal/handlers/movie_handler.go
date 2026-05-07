@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"time"
 
@@ -52,6 +53,7 @@ func (h *MovieHanlder) RegisterRoutes(router *gin.RouterGroup) {
 			protectedGroup.POST("/", h.Create)
 			protectedGroup.PATCH("/:id", h.Update)
 			protectedGroup.DELETE("/:id", h.Delete)
+			protectedGroup.POST("/:id", h.UploadPoster)
 		}
 	}
 }
@@ -150,6 +152,7 @@ func (h *MovieHanlder) GetByID(c *gin.Context) {
 		Description: movie.Description,
 		ReleaseDate: movie.ReleaseDate.Format(time.DateTime),
 		Tags:        tags,
+		PosterPath:  movie.PosterPath,
 	}
 
 	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: resp})
@@ -243,6 +246,7 @@ func (h *MovieHanlder) Update(c *gin.Context) {
 		Description: movie.Description,
 		ReleaseDate: movie.ReleaseDate.Format(time.DateTime),
 		Tags:        tags,
+		PosterPath:  movie.PosterPath,
 	}
 
 	h.Logger.Info("Movie updated", slog.Uint64("movie_id", uint64(movie.ID)))
@@ -300,6 +304,7 @@ func (h *MovieHanlder) FindWithFilters(c *gin.Context) {
 			Description: movie.Description,
 			ReleaseDate: movie.ReleaseDate.Format(time.DateOnly),
 			Tags:        tags,
+			PosterPath:  movie.PosterPath,
 		}
 	}
 
@@ -344,4 +349,33 @@ func (h *MovieHanlder) GetAllRates(c *gin.Context) {
 
 	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: rates})
 
+}
+
+func (h *MovieHanlder) UploadPoster(c *gin.Context) {
+	idParam := c.Param("id")
+	id, err := strconv.Atoi(idParam)
+
+	if err != nil || id <= 0 {
+		sendError(c, http.StatusBadRequest, "Invalid movie ID")
+		return
+	}
+
+	file, err := c.FormFile("poster")
+	if err != nil {
+		sendError(c, http.StatusBadRequest, "No file uploaded")
+		return
+	}
+
+	filename := "movie_" + strconv.FormatInt(int64(id), 10) + filepath.Ext(file.Filename)
+	savePath := filepath.Join("uploads", "posters", filename)
+
+	if err := c.SaveUploadedFile(file, savePath); err != nil {
+		sendError(c, http.StatusInternalServerError, "Failed to save file")
+		return
+	}
+
+	fullUrl := "/static/posters/" + filename
+
+	update := models.Movie{PosterPath: fullUrl}
+	h.Service.Update(c, &models.Movie{Model: gorm.Model{ID: uint(id)}}, update)
 }
