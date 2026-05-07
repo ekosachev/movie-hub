@@ -229,6 +229,7 @@ func (h *UserHandler) SetRole(c *gin.Context) {
 
 	if role == nil {
 		sendError(c, http.StatusNotFound, fmt.Sprintf("Role with id %v does not exist", req.RoleID))
+		return
 	}
 
 	user.RoleID = &role.ID

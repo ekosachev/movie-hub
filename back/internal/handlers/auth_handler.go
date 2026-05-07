@@ -40,6 +40,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		sendError(c, http.StatusBadRequest, err.Error())
+		return
 	}
 
 	token, err := h.Service.Login(c, req.Email, req.Password)
@@ -63,6 +64,7 @@ func (h *AuthHandler) GetPermissions(c *gin.Context) {
 
 	if !exists {
 		sendError(c, http.StatusUnauthorized, "Permissions not found")
+		return
 	}
 
 	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: userPerms})

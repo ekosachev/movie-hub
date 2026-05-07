@@ -153,7 +153,7 @@ func (h *TagHandler) Delete(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
 	if err != nil || id <= 0 {
-		sendError(c, http.StatusBadRequest, "Invalid user ID")
+		sendError(c, http.StatusBadRequest, "Invalid tag ID")
 		return
 	}
 
@@ -163,6 +163,6 @@ func (h *TagHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	h.Logger.Info("User deleted", slog.Int("user_id", id))
+	h.Logger.Info("Tag deleted", slog.Int("user_id", id))
 	c.JSON(http.StatusOK, dto.APIResponse{Success: true})
 }

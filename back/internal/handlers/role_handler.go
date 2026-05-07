@@ -186,10 +186,10 @@ func (h *RoleHandler) Delete(c *gin.Context) {
 
 	if _, err := h.Service.Delete(c, &models.Role{Model: gorm.Model{ID: uint(id)}}); err != nil {
 		h.Logger.Error("Failed to delete a role", slog.Int("id", id), slog.String("error", err.Error()))
-		sendError(c, http.StatusInternalServerError, "Could not delete user")
+		sendError(c, http.StatusInternalServerError, "Could not delete role")
 		return
 	}
 
-	h.Logger.Info("Role deleted", slog.Int("user_id", id))
+	h.Logger.Info("Role deleted", slog.Int("role", id))
 	c.JSON(http.StatusOK, dto.APIResponse{Success: true})
 }
