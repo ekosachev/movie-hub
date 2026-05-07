@@ -99,7 +99,7 @@ func (h *MovieHanlder) Create(c *gin.Context) {
 
 	if err := h.Service.Create(c, movie); err != nil {
 		h.Logger.Error("Failed to create movie", slog.String("error", err.Error()))
-		sendError(c, http.StatusInternalServerError, "Could not create role")
+		sendError(c, http.StatusInternalServerError, "Could not create movie")
 		return
 	}
 
