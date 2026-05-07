@@ -64,6 +64,7 @@ func (h *AuthHandler) GetPermissions(c *gin.Context) {
 
 	if !exists {
 		sendError(c, http.StatusUnauthorized, "Permissions not found")
+		return
 	}
 
 	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: userPerms})
