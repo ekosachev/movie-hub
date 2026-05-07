@@ -17,6 +17,7 @@ type MovieResponse struct {
 	Description string        `json:"description"`
 	ReleaseDate string        `json:"release_date"`
 	Tags        []TagResponse `json:"tags"`
+	PosterPath  string        `json:"poster_path" binding:"omitempty"`
 }
 
 type UpdateMovieRequest struct {

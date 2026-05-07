@@ -150,6 +150,7 @@ func (h *MovieHanlder) GetByID(c *gin.Context) {
 		Description: movie.Description,
 		ReleaseDate: movie.ReleaseDate.Format(time.DateTime),
 		Tags:        tags,
+		PosterPath:  movie.PosterPath,
 	}
 
 	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: resp})
@@ -243,6 +244,7 @@ func (h *MovieHanlder) Update(c *gin.Context) {
 		Description: movie.Description,
 		ReleaseDate: movie.ReleaseDate.Format(time.DateTime),
 		Tags:        tags,
+		PosterPath:  movie.PosterPath,
 	}
 
 	h.Logger.Info("Movie updated", slog.Uint64("movie_id", uint64(movie.ID)))
@@ -300,6 +302,7 @@ func (h *MovieHanlder) FindWithFilters(c *gin.Context) {
 			Description: movie.Description,
 			ReleaseDate: movie.ReleaseDate.Format(time.DateOnly),
 			Tags:        tags,
+			PosterPath:  movie.PosterPath,
 		}
 	}
 
