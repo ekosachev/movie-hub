@@ -40,6 +40,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		sendError(c, http.StatusBadRequest, err.Error())
+		return
 	}
 
 	token, err := h.Service.Login(c, req.Email, req.Password)
