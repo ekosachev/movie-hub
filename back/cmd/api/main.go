@@ -19,6 +19,8 @@ func main() {
 	cfg := config.LoadConfig()
 	router := gin.Default()
 
+	router.Static("/static", "./uploads")
+
 	prom := ginprometheus.NewPrometheus("gin")
 	prom.Use(router)
 
