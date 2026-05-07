@@ -4,6 +4,7 @@ import { HomePage } from './pages/HomePage';
 import { ProfilePage } from './pages/ProfilePage';
 import { CollectionPage } from './pages/CollectionPage';
 import { AuthPage } from './pages/AuthPage';
+import { OnboardingPage } from './pages/OnboardingPage';
 import { Header } from './components/Header';
 
 const GlobalLayout: React.FC<{
@@ -24,8 +25,8 @@ const App: React.FC = () => {
 
   return (
     <Routes>
-      {/* Маршрут без шапки */}
       <Route path="/auth" element={<AuthPage />} />
+      <Route path="/onboarding" element={<OnboardingPage />} />
 
 
       <Route element={<GlobalLayout searchQuery={searchQuery} setSearchQuery={setSearchQuery} />}>
