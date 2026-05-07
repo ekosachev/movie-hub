@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { postComment, postRate, decodeUserId, fetchComments, fetchRates } from '../api/movies';
+import { postComment, postRate, decodeUserId, fetchComments, fetchRates, deleteComment, createCast, linkCastToMovie } from '../api/movies';
 
 interface Actor {
   name: string;
@@ -89,13 +89,23 @@ function StarRow({
 }
 
 export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onClose }) => {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const userId = user?.token ? decodeUserId(user.token) : null;
+  const canManageComments = hasPermission('manage_comments');
+  const canManageCast = hasPermission('manage_cast');
 
   const [comments, setComments] = useState<Comment[]>(movie.comments || []);
   const [newCommentText, setNewCommentText] = useState('');
   const [commentLoading, setCommentLoading] = useState(false);
   const [commentError, setCommentError] = useState('');
+
+  const [cast, setCast] = useState<Actor[]>(movie.cast || []);
+  const [showAddActor, setShowAddActor] = useState(false);
+  const [newActorName, setNewActorName] = useState('');
+  const [newActorRole, setNewActorRole] = useState('');
+  const [newActorPhoto, setNewActorPhoto] = useState('');
+  const [actorLoading, setActorLoading] = useState(false);
+  const [actorError, setActorError] = useState('');
 
   const [ratings, setRatings] = useState<CriteriaRating>({ plot: null, performance: null, sfx: null });
   const [hoveredCriteria, setHoveredCriteria] = useState<Record<string, number | null>>({ plot: null, performance: null, sfx: null });
@@ -182,6 +192,36 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onC
       if (c.userVote === 'dislike') return { ...c, likes: c.likes + 1, dislikes: (c.dislikes || 0) - 1, userVote: 'like' };
       return { ...c, likes: c.likes + 1, userVote: 'like' };
     }));
+  };
+
+  const handleDeleteComment = async (commentId: number) => {
+    if (!user?.token) return;
+    try {
+      await deleteComment(commentId, user.token);
+      setComments(prev => prev.filter(c => c.id !== commentId));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleAddActor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user?.token) return;
+    setActorLoading(true);
+    setActorError('');
+    try {
+      const castId = await createCast(newActorName.trim(), '', newActorPhoto.trim(), user.token);
+      await linkCastToMovie(movie.id, castId, newActorRole.trim(), user.token);
+      setCast(prev => [...prev, { name: newActorName.trim(), photoUrl: newActorPhoto.trim() || undefined }]);
+      setNewActorName('');
+      setNewActorRole('');
+      setNewActorPhoto('');
+      setShowAddActor(false);
+    } catch (err) {
+      setActorError(err instanceof Error ? err.message : 'Ошибка');
+    } finally {
+      setActorLoading(false);
+    }
   };
 
   const handleDislike = (commentId: number) => {
@@ -277,11 +317,58 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onC
             </div>
           )}
 
-          {movie.cast && movie.cast.length > 0 && (
+          {(cast.length > 0 || canManageCast) && (
             <div>
-              <h3 className="text-lg font-semibold text-white mb-3">В ролях</h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-lg font-semibold text-white">В ролях</h3>
+                {canManageCast && (
+                  <button
+                    onClick={() => setShowAddActor(v => !v)}
+                    className="text-xs text-accent hover:opacity-80 transition-opacity flex items-center gap-1"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Добавить актёра
+                  </button>
+                )}
+              </div>
+              {showAddActor && (
+                <form onSubmit={handleAddActor} className="mb-4 flex flex-col gap-2 bg-background/30 p-4 rounded-xl border border-gray-700/30">
+                  <input
+                    type="text"
+                    value={newActorName}
+                    onChange={e => setNewActorName(e.target.value)}
+                    required
+                    placeholder="Имя актёра"
+                    className="bg-transparent border border-gray-700/50 rounded-lg px-3 py-1.5 text-sm text-white placeholder-gray-500 outline-none focus:border-accent/50"
+                  />
+                  <input
+                    type="text"
+                    value={newActorRole}
+                    onChange={e => setNewActorRole(e.target.value)}
+                    required
+                    placeholder="Роль в фильме"
+                    className="bg-transparent border border-gray-700/50 rounded-lg px-3 py-1.5 text-sm text-white placeholder-gray-500 outline-none focus:border-accent/50"
+                  />
+                  <input
+                    type="text"
+                    value={newActorPhoto}
+                    onChange={e => setNewActorPhoto(e.target.value)}
+                    placeholder="URL фото (необязательно)"
+                    className="bg-transparent border border-gray-700/50 rounded-lg px-3 py-1.5 text-sm text-white placeholder-gray-500 outline-none focus:border-accent/50"
+                  />
+                  {actorError && <p className="text-red-400 text-xs">{actorError}</p>}
+                  <div className="flex justify-end gap-2">
+                    <button type="button" onClick={() => setShowAddActor(false)} className="text-xs text-gray-400 hover:text-white transition-colors px-3 py-1.5">Отмена</button>
+                    <button type="submit" disabled={actorLoading} className="bg-accent text-[#181A1C] font-bold text-xs px-4 py-1.5 rounded-lg hover:opacity-90 disabled:opacity-50 transition-all">
+                      {actorLoading ? 'Добавляем...' : 'Добавить'}
+                    </button>
+                  </div>
+                </form>
+              )}
               <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-600">
-                {movie.cast.map((actor, idx) => (
+                {cast.map((actor, idx) => (
                   <div key={idx} className="flex flex-col items-center gap-2 min-w-[80px]">
                     <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-700 border-2 border-gray-600/50">
                       {actor.photoUrl ? (
@@ -358,6 +445,17 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onC
                           </svg>
                           {comment.dislikes || 0}
                         </button>
+                        {canManageComments && (
+                          <button
+                            onClick={() => handleDeleteComment(comment.id)}
+                            className="text-gray-500 hover:text-red-400 transition-colors focus:outline-none"
+                            title="Удалить комментарий"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        )}
                       </div>
                     </div>
                     <p className="text-gray-300 text-sm whitespace-pre-wrap">{comment.text}</p>

@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { mockTags } from '../mockData';
+import { useAuth } from '../context/AuthContext';
+import { createTag, deleteTag } from '../api/movies';
 
 export interface FilterSettings {
   tags: string[];
@@ -14,8 +16,42 @@ interface FilterPanelProps {
 }
 
 export const FilterPanel: React.FC<FilterPanelProps> = ({ onApply, onReset }) => {
+  const { user, hasPermission } = useAuth();
+  const canUpdateTags = hasPermission('update_tags');
+
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [selectedRating, setSelectedRating] = useState<string>('Все');
+
+  const [newTagName, setNewTagName] = useState('');
+  const [tagLoading, setTagLoading] = useState(false);
+  const [tagError, setTagError] = useState('');
+  const [createdTags, setCreatedTags] = useState<{ id: number; name: string }[]>([]);
+
+  const handleCreateTag = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user?.token || !newTagName.trim()) return;
+    setTagLoading(true);
+    setTagError('');
+    try {
+      const tag = await createTag(newTagName.trim(), user.token);
+      setCreatedTags(prev => [...prev, tag]);
+      setNewTagName('');
+    } catch (err) {
+      setTagError(err instanceof Error ? err.message : 'Ошибка');
+    } finally {
+      setTagLoading(false);
+    }
+  };
+
+  const handleDeleteTag = async (tagId: number) => {
+    if (!user?.token) return;
+    try {
+      await deleteTag(tagId, user.token);
+      setCreatedTags(prev => prev.filter(t => t.id !== tagId));
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const toggleTag = (tag: string) => {
     setSelectedTags(prev =>
@@ -129,6 +165,49 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onApply, onReset }) =>
           ))}
         </div>
       </div>
+
+      {canUpdateTags && (
+        <>
+          <hr className="border-gray-700" />
+          <div>
+            <h3 className="font-bold mb-4 uppercase tracking-wider text-sm text-gray-400">Управление тегами</h3>
+            <form onSubmit={handleCreateTag} className="flex gap-2 mb-3">
+              <input
+                type="text"
+                value={newTagName}
+                onChange={e => setNewTagName(e.target.value)}
+                placeholder="Новый тег"
+                className="flex-1 bg-[#2C2E33] border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-500 outline-none focus:border-accent/50 transition-colors"
+              />
+              <button
+                type="submit"
+                disabled={tagLoading || !newTagName.trim()}
+                className="bg-accent text-[#181A1C] font-bold text-sm px-3 py-2 rounded-xl hover:opacity-90 disabled:opacity-50 transition-all"
+              >
+                {tagLoading ? '...' : '+'}
+              </button>
+            </form>
+            {tagError && <p className="text-red-400 text-xs mb-2">{tagError}</p>}
+            {createdTags.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {createdTags.map(tag => (
+                  <span key={tag.id} className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm bg-accent/10 border border-accent/30 text-accent">
+                    {tag.name}
+                    <button
+                      onClick={() => handleDeleteTag(tag.id)}
+                      className="ml-1 hover:text-red-400 transition-colors"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
 
       <div className="pt-4 flex flex-col gap-3">
         <button 

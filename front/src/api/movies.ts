@@ -66,6 +66,92 @@ export async function postComment(
   return json.data!;
 }
 
+export async function deleteComment(
+  commentId: number,
+  token: string
+): Promise<void> {
+  const res = await fetch(`/api/v1/comments/${commentId}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+  const json: ApiResponse<null> = await res.json();
+  if (!res.ok || !json.success) {
+    throw new Error(json.error || 'Не удалось удалить комментарий');
+  }
+}
+
+export async function createMovie(
+  title: string,
+  description: string,
+  releaseDate: string,
+  tagIds: number[],
+  token: string
+): Promise<void> {
+  const res = await fetch('/api/v1/movies/', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({ title, description, release_date: releaseDate, tag_ids: tagIds }),
+  });
+  const json: ApiResponse<unknown> = await res.json();
+  if (!res.ok || !json.success) {
+    throw new Error(json.error || 'Не удалось создать фильм');
+  }
+}
+
+export async function createTag(name: string, token: string): Promise<{ id: number; name: string }> {
+  const res = await fetch('/api/v1/tags/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify({ name }),
+  });
+  const json: ApiResponse<{ id: number; name: string }> = await res.json();
+  if (!res.ok || !json.success) throw new Error(json.error || 'Не удалось создать тег');
+  return json.data!;
+}
+
+export async function deleteTag(tagId: number, token: string): Promise<void> {
+  const res = await fetch(`/api/v1/tags/${tagId}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+  const json: ApiResponse<null> = await res.json();
+  if (!res.ok || !json.success) throw new Error(json.error || 'Не удалось удалить тег');
+}
+
+export async function createCast(
+  name: string,
+  biography: string,
+  photoUrl: string,
+  token: string
+): Promise<number> {
+  const res = await fetch('/api/v1/casts/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify({ name, biography, photo_url: photoUrl }),
+  });
+  const json: ApiResponse<{ id: number }> = await res.json();
+  if (!res.ok || !json.success) throw new Error(json.error || 'Не удалось создать актёра');
+  return json.data!.id;
+}
+
+export async function linkCastToMovie(
+  movieId: number,
+  castId: number,
+  role: string,
+  token: string
+): Promise<void> {
+  const res = await fetch('/api/v1/movie-casts/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify({ movie_id: movieId, cast_id: castId, role }),
+  });
+  const json: ApiResponse<unknown> = await res.json();
+  if (!res.ok || !json.success) throw new Error(json.error || 'Не удалось привязать актёра');
+}
+
 export async function postRate(
   movieId: number,
   plot: number,
