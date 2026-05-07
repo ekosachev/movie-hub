@@ -31,6 +31,6 @@ type MovieFilterRequest struct {
 	Title     string     `form:"title"`
 	TagIDs    []uint     `form:"tag_ids"`
 	DateFrom  *time.Time `form:"date_from" time_format:"2006-01-02"`
-	DateTo    *time.Time `form:"time_to" time_format:"2006-01-02"`
+	DateTo    *time.Time `form:"date_to" time_format:"2006-01-02"`
 	MinRating float64    `form:"min_rating"`
 }
