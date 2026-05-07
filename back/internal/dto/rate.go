@@ -4,7 +4,6 @@ type CreateRateRequest struct {
 	Plot        uint `json:"plot" binding:"required,min=1,max=10"`
 	Performance uint `json:"performance" binding:"required,min=1,max=10"`
 	Sfx         uint `json:"sfx" binding:"required,min=1,max=10"`
-	UserID      int  `json:"user_id" binding:"required"`
 	MovieID     int  `json:"movie_id" binding:"required"`
 }
 
