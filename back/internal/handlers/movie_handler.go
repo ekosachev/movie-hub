@@ -377,5 +377,13 @@ func (h *MovieHanlder) UploadPoster(c *gin.Context) {
 	fullUrl := "/static/posters/" + filename
 
 	update := models.Movie{PosterPath: fullUrl}
-	h.Service.Update(c, &models.Movie{Model: gorm.Model{ID: uint(id)}}, update)
+	_, err = h.Service.Update(c, &models.Movie{Model: gorm.Model{ID: uint(id)}}, update)
+
+	if err != nil {
+		sendError(c, http.StatusInternalServerError, "Internal server error")
+		h.Logger.Error("Failed to update movie", slog.String("error", err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.APIResponse{Success: true})
 }
