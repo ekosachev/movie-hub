@@ -106,7 +106,7 @@ func (r *MovieRepository) FindWithFilters(ctx context.Context, filter dto.MovieF
 	if filter.MinRating > 0 {
 		query = query.Joins("LEFT JOIN ratings ON ratings.movie_id = movies.id").
 			Group("movies.id").
-			Having("AVG(ratings.score) >= ?", filter.MinRating)
+			Having("AVG((ratings.plot + ratings.performance + ratings.sfx) / 3) >= ?", filter.MinRating)
 	}
 
 	err := query.Preload("Tag").Find(&movies).Error
