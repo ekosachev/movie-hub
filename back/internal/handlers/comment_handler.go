@@ -96,6 +96,7 @@ func (h *CommentHandler) GetByID(c *gin.Context) {
 	if err != nil {
 		h.Logger.Error("Failed to get author of comment", slog.String("error", err.Error()))
 		sendError(c, http.StatusInternalServerError, "Internal server error")
+		return
 	}
 
 	resp := dto.CommentResponse{

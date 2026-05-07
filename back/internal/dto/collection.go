@@ -3,7 +3,6 @@ package dto
 type CreateCollectionRequest struct {
 	Name     string `json:"name" binding:"required,min=1,max=255"`
 	IsPublic bool   `json:"is_public"`
-	UserID   int    `json:"user_id" binding:"required"`
 }
 
 type UpdateCollectionRequest struct {
