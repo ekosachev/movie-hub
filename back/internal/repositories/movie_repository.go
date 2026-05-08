@@ -109,6 +109,12 @@ func (r *MovieRepository) FindWithFilters(ctx context.Context, filter dto.MovieF
 			Having("AVG((ratings.plot + ratings.performance + ratings.sfx) / 3) >= ?", filter.MinRating)
 	}
 
+	if filter.Limit > 0 {
+		query = query.Limit(int(filter.Limit))
+	}
+
+	query = query.Offset(int(filter.Offset))
+
 	err := query.Preload("Tag").Find(&movies).Error
 	return movies, err
 }
