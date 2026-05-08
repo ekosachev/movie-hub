@@ -10,7 +10,7 @@ export const CollectionPage: React.FC = () => {
   const navigate = useNavigate();
   const [selectedMovieId, setSelectedMovieId] = useState<number | null>(null);
 
-  const { getCollectionById } = usePlaylists();
+  const { getCollectionById, removeMovieFromCollection } = usePlaylists();
   const collectionId = Number(id);
   const collection = Number.isFinite(collectionId) ? getCollectionById(collectionId) : null;
 
@@ -93,16 +93,28 @@ export const CollectionPage: React.FC = () => {
         {collectionMovies.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {collectionMovies.map(movie => (
-              <MovieCard
-                key={movie.id}
-                id={movie.id}
-                title={movie.title}
-                releaseYear={movie.releaseYear}
-                tags={movie.tags}
-                rating={movie.rating}
-                posterUrl={movie.posterUrl}
-                onClick={setSelectedMovieId}
-              />
+              <div key={movie.id} className="relative">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeMovieFromCollection(collection.id, movie.id);
+                  }}
+                  className="absolute top-3 left-3 z-10 bg-black/50 hover:bg-black/70 text-white text-xs font-bold px-2 py-1 rounded-lg border border-white/10 backdrop-blur"
+                  title="Убрать из подборки"
+                >
+                  Убрать
+                </button>
+                <MovieCard
+                  id={movie.id}
+                  title={movie.title}
+                  releaseYear={movie.releaseYear}
+                  tags={movie.tags}
+                  rating={movie.rating}
+                  posterUrl={movie.posterUrl}
+                  onClick={setSelectedMovieId}
+                />
+              </div>
             ))}
           </div>
         ) : (
