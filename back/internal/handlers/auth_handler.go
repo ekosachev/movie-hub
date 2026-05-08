@@ -31,6 +31,7 @@ func (h *AuthHandler) RegisterRoutes(router *gin.RouterGroup) {
 		protectedGroup := group.Group("/").Use(middleware.AuthMiddleware())
 		{
 			protectedGroup.GET("/permissions", h.GetPermissions)
+			protectedGroup.GET("/me", h.GetCurrentUser)
 		}
 	}
 }
@@ -68,4 +69,34 @@ func (h *AuthHandler) GetPermissions(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: userPerms})
+}
+
+func (h *AuthHandler) GetCurrentUser(c *gin.Context) {
+	userID, exists := c.Get("userID")
+
+	if !exists {
+		sendError(c, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	user, err := h.Service.UserRepo.GetByID(c, uint(userID.(float64)))
+
+	if err != nil {
+		sendError(c, http.StatusInternalServerError, "Internal server error")
+		h.Logger.Error("Failed to get user by ID", slog.String("error", err.Error()))
+		return
+	}
+
+	if user == nil {
+		sendError(c, http.StatusNotFound, "User not found")
+		h.Logger.Error("Failed to find current user", slog.Any("id", userID))
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.UserResponse{
+		ID:       user.ID,
+		Username: user.Username,
+		Email:    user.EmailAddress,
+		RoleID:   user.RoleID,
+	})
 }
