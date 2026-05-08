@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { FilterPanel, FilterSettings } from '../components/FilterPanel';
 import { MovieCard } from '../components/MovieCard';
 import { MovieDetailsModal } from '../components/MovieDetailsModal';
@@ -12,14 +13,60 @@ interface HomePageProps {
 
 export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
   const { hasPermission } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeFilters, setActiveFilters] = useState<FilterSettings | null>(null);
   const [selectedMovieId, setSelectedMovieId] = useState<number | null>(null);
   const [showCreateMovie, setShowCreateMovie] = useState(false);
 
   const selectedMovie = mockMovies.find(m => m.id === selectedMovieId);
 
+  useEffect(() => {
+    const tags = (searchParams.get('tags') ?? '')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+    const rating = searchParams.get('rating') ?? 'Все';
+    const yearFrom = searchParams.get('yfrom') ?? '';
+    const yearTo = searchParams.get('yto') ?? '';
+
+    const hasAny = tags.length > 0 || rating !== 'Все' || yearFrom || yearTo;
+    setActiveFilters(hasAny ? { tags, rating, yearFrom, yearTo } : null);
+  }, [searchParams]);
+
+  const applyFilters = (filters: FilterSettings) => {
+    setActiveFilters(filters);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (filters.tags.length > 0) next.set('tags', filters.tags.join(','));
+      else next.delete('tags');
+
+      if (filters.rating && filters.rating !== 'Все') next.set('rating', filters.rating);
+      else next.delete('rating');
+
+      if (filters.yearFrom) next.set('yfrom', String(filters.yearFrom));
+      else next.delete('yfrom');
+
+      if (filters.yearTo) next.set('yto', String(filters.yearTo));
+      else next.delete('yto');
+
+      return next;
+    }, { replace: true });
+  };
+
+  const resetFilters = () => {
+    setActiveFilters(null);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.delete('tags');
+      next.delete('rating');
+      next.delete('yfrom');
+      next.delete('yto');
+      return next;
+    }, { replace: true });
+  };
+
   // Каскадная фильтрация
-  const filteredMovies = mockMovies.filter(movie => {
+  const filteredMovies = useMemo(() => mockMovies.filter(movie => {
     // 1. Проверяем строку поиска
     const matchesSearch = movie.title.toLowerCase().includes(searchQuery.toLowerCase());
     if (!matchesSearch) return false;
@@ -41,12 +88,12 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
     }
 
     return true;
-  });
+  }), [searchQuery, activeFilters]);
 
   return (
     <div className="flex-1 grid grid-cols-12 gap-6 relative">
       <aside className="col-span-12 md:col-span-4 lg:col-span-3 bg-card rounded-2xl p-6 shadow-lg border border-gray-700/30 sticky top-[104px] h-fit">
-        <FilterPanel onApply={setActiveFilters} onReset={() => setActiveFilters(null)} />
+        <FilterPanel onApply={applyFilters} onReset={resetFilters} />
       </aside>
 
       <main className="col-span-12 md:col-span-8 lg:col-span-9 bg-card rounded-2xl p-6 shadow-lg border border-gray-700/30 min-h-[500px]">

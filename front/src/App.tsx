@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Routes, Route, Outlet } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Routes, Route, Outlet, useSearchParams } from 'react-router-dom';
 import { HomePage } from './pages/HomePage';
 import { ProfilePage } from './pages/ProfilePage';
 import { CollectionPage } from './pages/CollectionPage';
@@ -7,6 +7,7 @@ import { AuthPage } from './pages/AuthPage';
 import { OnboardingPage } from './pages/OnboardingPage';
 import { AdminStatsPage } from './pages/AdminStatsPage';
 import { Header } from './components/Header';
+import { useDebouncedValue } from './utils/useDebouncedValue';
 
 const GlobalLayout: React.FC<{
   searchQuery: string;
@@ -21,8 +22,27 @@ const GlobalLayout: React.FC<{
 };
 
 const App: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const qFromUrl = searchParams.get('q') ?? '';
 
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchDraft, setSearchDraft] = useState(qFromUrl);
+  useEffect(() => setSearchDraft(qFromUrl), [qFromUrl]);
+
+  const debouncedDraft = useDebouncedValue(searchDraft, 250);
+
+  useEffect(() => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      const trimmed = debouncedDraft.trim();
+      if (trimmed) next.set('q', trimmed);
+      else next.delete('q');
+      return next;
+    }, { replace: true });
+  }, [debouncedDraft, setSearchParams]);
+
+  const setSearchQuery = useMemo(() => {
+    return (val: string) => setSearchDraft(val);
+  }, []);
 
   return (
     <Routes>
@@ -30,8 +50,8 @@ const App: React.FC = () => {
       <Route path="/onboarding" element={<OnboardingPage />} />
 
 
-      <Route element={<GlobalLayout searchQuery={searchQuery} setSearchQuery={setSearchQuery} />}>
-        <Route path="/" element={<HomePage searchQuery={searchQuery} />} />
+      <Route element={<GlobalLayout searchQuery={searchDraft} setSearchQuery={setSearchQuery} />}>
+        <Route path="/" element={<HomePage searchQuery={searchDraft} />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/collection/:id" element={<CollectionPage />} />
         <Route path="/admin/stats" element={<AdminStatsPage />} />
