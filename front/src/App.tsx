@@ -5,6 +5,7 @@ import { ProfilePage } from './pages/ProfilePage';
 import { CollectionPage } from './pages/CollectionPage';
 import { AuthPage } from './pages/AuthPage';
 import { OnboardingPage } from './pages/OnboardingPage';
+import { AdminStatsPage } from './pages/AdminStatsPage';
 import { Header } from './components/Header';
 
 const GlobalLayout: React.FC<{
@@ -33,6 +34,7 @@ const App: React.FC = () => {
         <Route path="/" element={<HomePage searchQuery={searchQuery} />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/collection/:id" element={<CollectionPage />} />
+        <Route path="/admin/stats" element={<AdminStatsPage />} />
       </Route>
     </Routes>
   );
