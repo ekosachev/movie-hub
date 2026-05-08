@@ -96,6 +96,20 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
     }, { replace: true });
   };
 
+  const clearAll = () => {
+    setActiveFilters(null);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.delete('q');
+      next.delete('tags');
+      next.delete('rating');
+      next.delete('yfrom');
+      next.delete('yto');
+      next.delete('page');
+      return next;
+    }, { replace: true });
+  };
+
   // Каскадная фильтрация
   const filteredMovies = useMemo(() => mockMovies.filter(movie => {
     // 1. Проверяем строку поиска
@@ -146,21 +160,37 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
 
       <main className="col-span-12 md:col-span-8 lg:col-span-9 bg-card rounded-2xl p-6 shadow-lg border border-gray-700/30 min-h-[500px]">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-white font-sans flex items-center gap-3">
-            <span className="w-1 h-6 bg-accent rounded-full inline-block"></span>
-            Тренды Года
-          </h2>
-          {hasPermission('update_movies') && (
-            <button
-              onClick={() => setShowCreateMovie(true)}
-              className="flex items-center gap-2 bg-accent text-[#181A1C] font-bold text-sm px-4 py-2 rounded-xl hover:opacity-90 transition-all"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Добавить фильм
-            </button>
-          )}
+          <div className="flex items-center gap-4">
+            <h2 className="text-2xl font-bold text-white font-sans flex items-center gap-3">
+              <span className="w-1 h-6 bg-accent rounded-full inline-block"></span>
+              Тренды Года
+            </h2>
+            <span className="text-sm text-gray-500 font-medium">
+              Найдено: <span className="text-gray-300">{filteredMovies.length}</span>
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            {(searchQuery.trim() || activeFilters) && (
+              <button
+                type="button"
+                onClick={clearAll}
+                className="text-gray-300 hover:text-white bg-background px-4 py-2 rounded-xl border border-gray-700/50"
+              >
+                Очистить всё
+              </button>
+            )}
+            {hasPermission('update_movies') && (
+              <button
+                onClick={() => setShowCreateMovie(true)}
+                className="flex items-center gap-2 bg-accent text-[#181A1C] font-bold text-sm px-4 py-2 rounded-xl hover:opacity-90 transition-all"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Добавить фильм
+              </button>
+            )}
+          </div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {pageMovies.length > 0 ? (
@@ -178,7 +208,7 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
             ))
           ) : (
             <div className="col-span-full py-12 text-center text-gray-400 font-medium">
-              По запросу «{searchQuery}» ничего не найдено... 🥲
+              Ничего не найдено{searchQuery.trim() ? ` по запросу «${searchQuery}»` : ''}... 🥲
             </div>
           )}
         </div>
