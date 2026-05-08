@@ -5,10 +5,10 @@ import { mockMovies, mockCustomCollections } from '../mockData';
 import { MovieCard } from '../components/MovieCard';
 import { CreateCollectionModal, NewCollectionData } from '../components/CreateCollectionModal';
 
-type TabType = 'favorites' | 'watched' | 'watchlist' | 'collections' | 'admin';
+type TabType = 'favorites' | 'watched' | 'watchlist' | 'collections' | 'admin' | 'content';
 
 export const ProfilePage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('favorites');
   const [collections, setCollections] = useState(mockCustomCollections);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -17,6 +17,7 @@ export const ProfilePage: React.FC = () => {
 
   const role = user.role;
   const canSeeAdminTab = role === 'admin';
+  const canManageMovies = hasPermission('update_movies');
 
   // Фейковые списки для демонстрации (позже подключим API)
   const lists = useMemo(() => ({ favorites: [], watched: [], watchlist: [] }), []);
@@ -25,7 +26,10 @@ export const ProfilePage: React.FC = () => {
     if (activeTab === 'admin' && !canSeeAdminTab) {
       setActiveTab('favorites');
     }
-  }, [activeTab, canSeeAdminTab]);
+    if (activeTab === 'content' && !canManageMovies) {
+      setActiveTab('favorites');
+    }
+  }, [activeTab, canSeeAdminTab, canManageMovies]);
 
   // Функция для получения объектов фильмов по массиву их ID
   const getMoviesByIds = (ids: number[]) => {
@@ -128,6 +132,15 @@ export const ProfilePage: React.FC = () => {
           <TabButton active={activeTab === 'watchlist'} onClick={() => setActiveTab('watchlist')}>Буду смотреть</TabButton>
           <TabButton active={activeTab === 'collections'} onClick={() => setActiveTab('collections')}>Мои Подборки</TabButton>
           
+          {canManageMovies && (
+            <>
+              <div className="w-px bg-gray-700 mx-2 my-2"></div>
+              <TabButton active={activeTab === 'content'} onClick={() => setActiveTab('content')} className="text-blue-400 hover:text-blue-300">
+                ＋ Контент
+              </TabButton>
+            </>
+          )}
+
           {canSeeAdminTab && (
             <>
               <div className="w-px bg-gray-700 mx-2 my-2"></div>
@@ -183,6 +196,27 @@ export const ProfilePage: React.FC = () => {
               )) : (
                 <div className="text-gray-500 text-center py-10">У вас пока нет подборок</div>
               )}
+            </div>
+          )}
+
+          {activeTab === 'content' && (
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-black text-white">Контент-менеджмент</h2>
+                  <p className="text-gray-400 text-sm mt-1">Добавление и обновление фильмов</p>
+                </div>
+                <Link
+                  to="/movies/new"
+                  className="bg-blue-500/15 hover:bg-blue-500/20 border border-blue-500/30 text-blue-300 font-bold px-4 py-2 rounded-xl transition-colors"
+                >
+                  Добавить фильм →
+                </Link>
+              </div>
+
+              <div className="text-gray-500 text-sm bg-background/40 border border-gray-700/40 rounded-xl p-4">
+                Пока это entry-point. В следующем этапе подключим реальные теги и `POST /movies`.
+              </div>
             </div>
           )}
 
