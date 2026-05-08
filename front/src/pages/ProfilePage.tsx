@@ -1,32 +1,30 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { mockMovies, mockCustomCollections, currentUser as mockAdmin } from '../mockData';
+import { mockMovies } from '../mockData';
 import { MovieCard } from '../components/MovieCard';
 import { CreateCollectionModal, NewCollectionData } from '../components/CreateCollectionModal';
+import { usePlaylists } from '../playlists/usePlaylists';
 
 type TabType = 'favorites' | 'watched' | 'watchlist' | 'collections' | 'admin';
 
 export const ProfilePage: React.FC = () => {
-  const { user } = useAuth();
-  const navigate = useNavigate();
+  const { user, hasPermission } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('favorites');
-  const [collections, setCollections] = useState(mockCustomCollections);
+  const { state, createCollection: createLocalCollection } = usePlaylists();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-  useEffect(() => {
-    if (!user) {
-      navigate('/auth');
-    }
-  }, [user, navigate]);
-
-  // Роль пока жестко задаем как 'user'. Позже будем получать её из AuthContext от бэкенда.
-  const role: string = 'user';
-  
-  // Фейковые списки для демонстрации
-  const lists = { favorites: [], watched: [], watchlist: [] };
-
   if (!user) return null;
+
+  const role: 'user' | 'content_manager' | 'admin' =
+    hasPermission('ban_users') || hasPermission('remove_comments')
+      ? 'admin'
+      : hasPermission('update_movies')
+        ? 'content_manager'
+        : 'user';
+
+  const lists = state.lists;
+  const collections = state.collections;
 
   // Функция для получения объектов фильмов по массиву их ID
   const getMoviesByIds = (ids: number[]) => {
@@ -59,21 +57,17 @@ export const ProfilePage: React.FC = () => {
   };
 
   const handleCreateCollection = (data: NewCollectionData) => {
-    const newCollection = {
-      id: Date.now(), // Генерируем временный ID
+    createLocalCollection({
       title: data.title,
       description: data.description,
       isPublic: data.isPublic,
-      movieIds: [], // Изначально пусто
-      rating: 0
-    };
-    
-    // Мутируем моковый массив, чтобы на странице Подборки (CollectionPage) эта коллекция тоже находилась!
-    mockCustomCollections.unshift(newCollection);
-    
-    setCollections(prev => [newCollection, ...prev]);
+    });
     setIsCreateModalOpen(false);
   };
+
+  const createdAtLabel = useMemo(() => {
+    return new Date().toISOString().slice(0, 10);
+  }, []);
 
   return (
     <div className="flex-1 grid grid-cols-12 gap-6 relative">
@@ -178,6 +172,7 @@ export const ProfilePage: React.FC = () => {
                   </div>
                   <div className="text-sm text-gray-500 font-medium mt-2 border-t border-gray-700/50 pt-3 flex justify-between items-center">
                     <span>Фильмов в подборке: <span className="text-white">{col.movieIds.length}</span></span>
+                    <span className="text-xs text-gray-600">{createdAtLabel}</span>
                     <span className="text-accent text-xs font-bold uppercase tracking-wider group-hover:translate-x-1 transition-transform">Перейти →</span>
                   </div>
                 </Link>

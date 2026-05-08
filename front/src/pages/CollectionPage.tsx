@@ -1,16 +1,18 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { mockCustomCollections, mockMovies } from '../mockData';
+import { mockMovies } from '../mockData';
 import { MovieCard } from '../components/MovieCard';
 import { MovieDetailsModal } from '../components/MovieDetailsModal';
+import { usePlaylists } from '../playlists/usePlaylists';
 
 export const CollectionPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [selectedMovieId, setSelectedMovieId] = useState<number | null>(null);
 
-  // Ищем подборку по ID из URL
-  const collection = mockCustomCollections.find(c => c.id === Number(id));
+  const { getCollectionById } = usePlaylists();
+  const collectionId = Number(id);
+  const collection = Number.isFinite(collectionId) ? getCollectionById(collectionId) : null;
 
   if (!collection) {
     return (
@@ -27,7 +29,9 @@ export const CollectionPage: React.FC = () => {
   }
 
   // Получаем фильмы, которые находятся в этой подборке
-  const collectionMovies = mockMovies.filter(movie => collection.movieIds.includes(movie.id));
+  const collectionMovies = useMemo(() => {
+    return mockMovies.filter(movie => collection.movieIds.includes(movie.id));
+  }, [collection.movieIds]);
   const selectedMovie = mockMovies.find(m => m.id === selectedMovieId);
 
   return (
