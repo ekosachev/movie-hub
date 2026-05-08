@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { mockMovies, mockCustomCollections } from '../mockData';
 import { MovieCard } from '../components/MovieCard';
@@ -9,24 +9,23 @@ type TabType = 'favorites' | 'watched' | 'watchlist' | 'collections' | 'admin';
 
 export const ProfilePage: React.FC = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabType>('favorites');
   const [collections, setCollections] = useState(mockCustomCollections);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-  useEffect(() => {
-    if (!user) {
-      navigate('/auth');
-    }
-  }, [user, navigate]);
-
-  // Роль пока жестко задаем как 'user'. Позже будем получать её из AuthContext от бэкенда.
-  const role: string = 'user';
-  
-  // Фейковые списки для демонстрации
-  const lists = { favorites: [], watched: [], watchlist: [] };
-
   if (!user) return null;
+
+  const role = user.role;
+  const canSeeAdminTab = role === 'admin';
+
+  // Фейковые списки для демонстрации (позже подключим API)
+  const lists = useMemo(() => ({ favorites: [], watched: [], watchlist: [] }), []);
+
+  useEffect(() => {
+    if (activeTab === 'admin' && !canSeeAdminTab) {
+      setActiveTab('favorites');
+    }
+  }, [activeTab, canSeeAdminTab]);
 
   // Функция для получения объектов фильмов по массиву их ID
   const getMoviesByIds = (ids: number[]) => {
@@ -129,7 +128,7 @@ export const ProfilePage: React.FC = () => {
           <TabButton active={activeTab === 'watchlist'} onClick={() => setActiveTab('watchlist')}>Буду смотреть</TabButton>
           <TabButton active={activeTab === 'collections'} onClick={() => setActiveTab('collections')}>Мои Подборки</TabButton>
           
-          {role === 'admin' && (
+          {canSeeAdminTab && (
             <>
               <div className="w-px bg-gray-700 mx-2 my-2"></div>
               <TabButton active={activeTab === 'admin'} onClick={() => setActiveTab('admin')} className="text-honey hover:text-honey/80">
