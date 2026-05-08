@@ -10,7 +10,7 @@ export const CollectionPage: React.FC = () => {
   const navigate = useNavigate();
   const [selectedMovieId, setSelectedMovieId] = useState<number | null>(null);
 
-  const { getCollectionById, removeMovieFromCollection } = usePlaylists();
+  const { getCollectionById, removeMovieFromCollection, deleteCollection } = usePlaylists();
   const collectionId = Number(id);
   const collection = Number.isFinite(collectionId) ? getCollectionById(collectionId) : null;
 
@@ -80,6 +80,19 @@ export const CollectionPage: React.FC = () => {
               {collection.description}
             </p>
           )}
+        </div>
+
+        <div className="relative z-10 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              deleteCollection(collection.id);
+              navigate('/profile');
+            }}
+            className="bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/20 font-bold px-4 py-2 rounded-xl transition-colors"
+          >
+            Удалить подборку
+          </button>
         </div>
       </header>
 

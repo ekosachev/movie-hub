@@ -11,8 +11,17 @@ type TabType = 'favorites' | 'watched' | 'watchlist' | 'collections' | 'admin';
 export const ProfilePage: React.FC = () => {
   const { user, hasPermission } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('favorites');
-  const { state, createCollection: createLocalCollection } = usePlaylists();
+  const {
+    state,
+    createCollection: createLocalCollection,
+    deleteCollection: deleteLocalCollection,
+    updateCollection: updateLocalCollection,
+  } = usePlaylists();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editingCollectionId, setEditingCollectionId] = useState<number | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editIsPublic, setEditIsPublic] = useState(false);
 
   if (!user) return null;
 
@@ -68,6 +77,24 @@ export const ProfilePage: React.FC = () => {
   const createdAtLabel = useMemo(() => {
     return new Date().toISOString().slice(0, 10);
   }, []);
+
+  const startEdit = (col: { id: number; title: string; description: string; isPublic: boolean }) => {
+    setEditingCollectionId(col.id);
+    setEditTitle(col.title);
+    setEditDescription(col.description);
+    setEditIsPublic(col.isPublic);
+  };
+
+  const submitEdit = () => {
+    if (!editingCollectionId) return;
+    if (!editTitle.trim()) return;
+    updateLocalCollection(editingCollectionId, {
+      title: editTitle.trim(),
+      description: editDescription.trim(),
+      isPublic: editIsPublic,
+    });
+    setEditingCollectionId(null);
+  };
 
   return (
     <div className="flex-1 grid grid-cols-12 gap-6 relative">
@@ -156,18 +183,35 @@ export const ProfilePage: React.FC = () => {
               </button>
 
               {collections.length > 0 ? collections.map(col => (
-                <Link to={`/collection/${col.id}`} key={col.id} className="bg-[#2C2E33] p-5 rounded-2xl border border-transparent hover:border-accent/30 transition-colors flex flex-col gap-3 group block">
-                  <div className="flex justify-between items-start">
+                <div key={col.id} className="bg-[#2C2E33] p-5 rounded-2xl border border-transparent hover:border-accent/30 transition-colors flex flex-col gap-3">
+                  <div className="flex justify-between items-start gap-3">
                     <div>
-                      <h3 className="text-lg font-bold text-white group-hover:text-accent transition-colors">{col.title}</h3>
+                      <Link to={`/collection/${col.id}`} className="block">
+                        <h3 className="text-lg font-bold text-white hover:text-accent transition-colors">{col.title}</h3>
+                      </Link>
                       <p className="text-gray-400 text-sm mt-1">{col.description}</p>
                     </div>
-                    <div className="flex gap-2 items-center">
+                    <div className="flex gap-2 items-center shrink-0">
                       {col.isPublic ? (
                         <span className="text-xs bg-accent/10 text-accent px-2 py-1 rounded">Публичная</span>
                       ) : (
                         <span className="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded">Приватная</span>
                       )}
+
+                      <button
+                        type="button"
+                        onClick={() => startEdit(col)}
+                        className="text-xs bg-gray-700/40 hover:bg-gray-700/60 text-gray-200 px-2 py-1 rounded"
+                      >
+                        Редакт.
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deleteLocalCollection(col.id)}
+                        className="text-xs bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/20 px-2 py-1 rounded"
+                      >
+                        Удалить
+                      </button>
                     </div>
                   </div>
                   <div className="text-sm text-gray-500 font-medium mt-2 border-t border-gray-700/50 pt-3 flex justify-between items-center">
@@ -175,7 +219,7 @@ export const ProfilePage: React.FC = () => {
                     <span className="text-xs text-gray-600">{createdAtLabel}</span>
                     <span className="text-accent text-xs font-bold uppercase tracking-wider group-hover:translate-x-1 transition-transform">Перейти →</span>
                   </div>
-                </Link>
+                </div>
               )) : (
                 <div className="text-gray-500 text-center py-10">У вас пока нет подборок</div>
               )}
@@ -198,6 +242,72 @@ export const ProfilePage: React.FC = () => {
           onClose={() => setIsCreateModalOpen(false)}
           onSubmit={handleCreateCollection}
         />
+      )}
+
+      {/* Модалка редактирования подборки */}
+      {editingCollectionId !== null && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setEditingCollectionId(null)} />
+          <div className="relative bg-card w-full max-w-lg rounded-3xl p-8 shadow-2xl border border-gray-700/50">
+            <h2 className="text-2xl font-bold text-white mb-6">Редактировать подборку</h2>
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-bold text-gray-400 uppercase tracking-wider">Название</label>
+                <input
+                  value={editTitle}
+                  onChange={e => setEditTitle(e.target.value)}
+                  className="bg-[#181A1C] border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-bold text-gray-400 uppercase tracking-wider">Описание</label>
+                <textarea
+                  rows={3}
+                  value={editDescription}
+                  onChange={e => setEditDescription(e.target.value)}
+                  className="bg-[#181A1C] border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors resize-none"
+                />
+              </div>
+              <div className="flex items-center justify-between p-4 bg-[#181A1C] rounded-xl border border-gray-700/50">
+                <div>
+                  <p className="font-bold text-white mb-1">Публичная подборка</p>
+                  <p className="text-xs text-gray-500">Другие пользователи смогут видеть её.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditIsPublic(v => !v)}
+                  className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none ${
+                    editIsPublic ? 'bg-accent' : 'bg-gray-600'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                      editIsPublic ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              <div className="flex gap-3 mt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingCollectionId(null)}
+                  className="flex-1 py-3 px-4 bg-gray-800 hover:bg-gray-700 text-white font-bold rounded-xl transition-colors"
+                >
+                  Отмена
+                </button>
+                <button
+                  type="button"
+                  onClick={submitEdit}
+                  disabled={!editTitle.trim()}
+                  className="flex-1 py-3 px-4 bg-accent hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-[#181A1C] font-extrabold uppercase tracking-wider rounded-xl transition-all"
+                >
+                  Сохранить
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

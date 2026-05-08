@@ -8,6 +8,7 @@ import {
   removeMovieFromCollection,
   savePlaylists,
   toggleMovieInList,
+  updateCollection,
 } from './storage';
 import type { ListType, PlaylistsState } from './types';
 
@@ -40,6 +41,12 @@ export function usePlaylists() {
       },
       deleteCollection: (collectionId: number) => {
         setState(prev => deleteCollection(prev, collectionId));
+      },
+      updateCollection: (
+        collectionId: number,
+        patch: { title?: string; description?: string; isPublic?: boolean }
+      ) => {
+        setState(prev => updateCollection(prev, collectionId, patch));
       },
       addMovieToCollection: (collectionId: number, movieId: number) => {
         setState(prev => addMovieToCollection(prev, collectionId, movieId));

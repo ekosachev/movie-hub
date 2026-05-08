@@ -77,6 +77,17 @@ export function deleteCollection(state: PlaylistsState, collectionId: number): P
   return { ...state, collections: state.collections.filter(c => c.id !== collectionId) };
 }
 
+export function updateCollection(
+  state: PlaylistsState,
+  collectionId: number,
+  patch: Partial<Pick<LocalCollection, 'title' | 'description' | 'isPublic'>>
+): PlaylistsState {
+  return {
+    ...state,
+    collections: state.collections.map(c => (c.id === collectionId ? { ...c, ...patch } : c)),
+  };
+}
+
 export function addMovieToCollection(state: PlaylistsState, collectionId: number, movieId: number): PlaylistsState {
   return {
     ...state,
