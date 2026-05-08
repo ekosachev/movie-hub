@@ -5,7 +5,10 @@ import { ProfilePage } from './pages/ProfilePage';
 import { CollectionPage } from './pages/CollectionPage';
 import { AuthPage } from './pages/AuthPage';
 import { OnboardingPage } from './pages/OnboardingPage';
+import { MovieCreatePage } from './pages/MovieCreatePage';
 import { Header } from './components/Header';
+import { RequireAuth } from './routing/RequireAuth';
+import { RequirePermission } from './routing/RequirePermission';
 
 const GlobalLayout: React.FC<{
   searchQuery: string;
@@ -31,8 +34,30 @@ const App: React.FC = () => {
 
       <Route element={<GlobalLayout searchQuery={searchQuery} setSearchQuery={setSearchQuery} />}>
         <Route path="/" element={<HomePage searchQuery={searchQuery} />} />
-        <Route path="/profile" element={<ProfilePage />} />
-        <Route path="/collection/:id" element={<CollectionPage />} />
+        <Route
+          path="/profile"
+          element={
+            <RequireAuth>
+              <ProfilePage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/collection/:id"
+          element={
+            <RequireAuth>
+              <CollectionPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/movies/new"
+          element={
+            <RequirePermission permission="update_movies">
+              <MovieCreatePage />
+            </RequirePermission>
+          }
+        />
       </Route>
     </Routes>
   );

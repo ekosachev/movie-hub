@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { register, login } from '../api/auth';
+import * as authApi from '../api/auth';
+import { ApiError } from '../api/http';
 
 type AuthMode = 'login' | 'register';
 
 export const AuthPage: React.FC = () => {
-  const { login: saveUser } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
 
   const [mode, setMode] = useState<AuthMode>('login');
@@ -21,9 +22,9 @@ export const AuthPage: React.FC = () => {
   const switchMode = (newMode: AuthMode) => {
     setMode(newMode);
     setError('');
+    setUsername('');
     setPassword('');
     setConfirmPassword('');
-    setUsername('');
   };
 
   const validate = (): string => {
@@ -51,16 +52,18 @@ export const AuthPage: React.FC = () => {
 
     try {
       if (mode === 'register') {
-        const user = await register({ username, email, password });
-        saveUser(user.email, '');
-        navigate('/onboarding');
-      } else {
-        const { token } = await login({ email, password });
-        saveUser(email, token);
-        navigate('/');
+        await authApi.register({ username: username.trim(), email: email.trim(), password });
       }
+
+      const { token } = await authApi.login(email.trim(), password);
+      login(email.trim(), token);
+      navigate('/');
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Что-то пошло не так');
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError(err instanceof Error ? err.message : 'Что-то пошло не так');
+      }
     } finally {
       setLoading(false);
     }
@@ -98,22 +101,24 @@ export const AuthPage: React.FC = () => {
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
 
+          {/* Username — только при регистрации */}
           {mode === 'register' && (
             <div className="flex flex-col gap-2">
               <label className="text-xs font-bold uppercase tracking-wider text-gray-400">
-                Имя пользователя
+                Username
               </label>
               <input
                 type="text"
                 value={username}
                 onChange={e => setUsername(e.target.value)}
-                placeholder="Минимум 3 символа"
+                placeholder="your_name"
                 autoComplete="username"
                 className="w-full bg-[#2C2E33] text-white px-4 py-3 rounded-xl border border-transparent focus:outline-none focus:border-accent/60 focus:ring-1 focus:ring-accent/60 transition-all duration-300 placeholder-gray-500"
               />
             </div>
           )}
 
+          {/* Email */}
           <div className="flex flex-col gap-2">
             <label className="text-xs font-bold uppercase tracking-wider text-gray-400">
               Email

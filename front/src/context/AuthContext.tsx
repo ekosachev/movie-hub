@@ -1,9 +1,12 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useMemo, useState } from 'react';
+import { parseJwt, roleFromPermissions, userIdFromSub, type AppRole } from '../auth/jwt';
 
-interface AuthUser {
+export interface AuthUser {
   email: string;
   token: string;
+  id: number | null;
   permissions: string[];
+  role: AppRole;
 }
 
 interface AuthContextType {
@@ -13,15 +16,6 @@ interface AuthContextType {
   hasPermission: (permission: string) => boolean;
 }
 
-function decodePermissions(token: string): string[] {
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    return Array.isArray(payload.permissions) ? payload.permissions : [];
-  } catch {
-    return [];
-  }
-}
-
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -29,13 +23,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const token = localStorage.getItem('token');
     const email = localStorage.getItem('userEmail');
     if (!token || !email) return null;
-    return { email, token, permissions: decodePermissions(token) };
+
+    const payload = parseJwt(token);
+    const permissions = payload?.permissions ?? [];
+    const id = userIdFromSub(payload?.sub);
+    const role = roleFromPermissions(permissions);
+
+    return { email, token, id, permissions, role };
   });
 
   const login = (email: string, token: string) => {
+    const payload = parseJwt(token);
+    const permissions = payload?.permissions ?? [];
+    const id = userIdFromSub(payload?.sub);
+    const role = roleFromPermissions(permissions);
+
     localStorage.setItem('token', token);
     localStorage.setItem('userEmail', email);
-    setUser({ email, token, permissions: decodePermissions(token) });
+    setUser({ email, token, id, permissions, role });
   };
 
   const logout = () => {
@@ -48,8 +53,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return user?.permissions.includes(permission) ?? false;
   };
 
+  const value = useMemo(() => ({ user, login, logout, hasPermission }), [user]);
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, hasPermission }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
