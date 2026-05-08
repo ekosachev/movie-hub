@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { FilterPanel, FilterSettings } from '../components/FilterPanel';
 import { MovieCard } from '../components/MovieCard';
@@ -20,6 +20,10 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
 
   const selectedMovie = mockMovies.find(m => m.id === selectedMovieId);
 
+  const pageSize = 16;
+  const pageFromUrl = Number(searchParams.get('page') ?? '1');
+  const page = Number.isFinite(pageFromUrl) && pageFromUrl > 0 ? pageFromUrl : 1;
+
   useEffect(() => {
     const tags = (searchParams.get('tags') ?? '')
       .split(',')
@@ -32,6 +36,31 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
     const hasAny = tags.length > 0 || rating !== 'Все' || yearFrom || yearTo;
     setActiveFilters(hasAny ? { tags, rating, yearFrom, yearTo } : null);
   }, [searchParams]);
+
+  const currentFilterKey = useMemo(() => {
+    const f = activeFilters;
+    if (!f) return 'no-filters';
+    return `${f.tags.join(',')}|${f.rating}|${String(f.yearFrom)}|${String(f.yearTo)}`;
+  }, [activeFilters]);
+  const prevFilterKey = useRef(currentFilterKey);
+  const prevSearch = useRef(searchQuery);
+
+  useEffect(() => {
+    const filterChanged = prevFilterKey.current !== currentFilterKey;
+    const searchChanged = prevSearch.current !== searchQuery;
+    if (filterChanged || searchChanged) {
+      prevFilterKey.current = currentFilterKey;
+      prevSearch.current = searchQuery;
+
+      // Reset page to 1 when query/filters change
+      setSearchParams(prev => {
+        const next = new URLSearchParams(prev);
+        if (next.get('page') && next.get('page') !== '1') next.set('page', '1');
+        else next.delete('page');
+        return next;
+      }, { replace: true });
+    }
+  }, [currentFilterKey, searchQuery, setSearchParams]);
 
   const applyFilters = (filters: FilterSettings) => {
     setActiveFilters(filters);
@@ -49,6 +78,7 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
       if (filters.yearTo) next.set('yto', String(filters.yearTo));
       else next.delete('yto');
 
+      next.delete('page');
       return next;
     }, { replace: true });
   };
@@ -61,6 +91,7 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
       next.delete('rating');
       next.delete('yfrom');
       next.delete('yto');
+      next.delete('page');
       return next;
     }, { replace: true });
   };
@@ -90,6 +121,23 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
     return true;
   }), [searchQuery, activeFilters]);
 
+  const totalPages = Math.max(1, Math.ceil(filteredMovies.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const pageMovies = useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return filteredMovies.slice(start, start + pageSize);
+  }, [filteredMovies, safePage]);
+
+  const setPage = (nextPage: number) => {
+    const clamped = Math.min(Math.max(1, nextPage), totalPages);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (clamped === 1) next.delete('page');
+      else next.set('page', String(clamped));
+      return next;
+    });
+  };
+
   return (
     <div className="flex-1 grid grid-cols-12 gap-6 relative">
       <aside className="col-span-12 md:col-span-4 lg:col-span-3 bg-card rounded-2xl p-6 shadow-lg border border-gray-700/30 sticky top-[104px] h-fit">
@@ -115,8 +163,8 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
           )}
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredMovies.length > 0 ? (
-            filteredMovies.map(movie => (
+          {pageMovies.length > 0 ? (
+            pageMovies.map(movie => (
               <MovieCard
                 key={movie.id}
                 id={movie.id}
@@ -134,6 +182,32 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
             </div>
           )}
         </div>
+
+        {filteredMovies.length > 0 && (
+          <div className="mt-8 flex items-center justify-between gap-4">
+            <div className="text-sm text-gray-400 font-medium">
+              Страница <span className="text-white">{safePage}</span> из <span className="text-white">{totalPages}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPage(safePage - 1)}
+                disabled={safePage <= 1}
+                className="px-4 py-2 rounded-xl bg-background border border-gray-700/50 text-gray-300 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                ← Prev
+              </button>
+              <button
+                type="button"
+                onClick={() => setPage(safePage + 1)}
+                disabled={safePage >= totalPages}
+                className="px-4 py-2 rounded-xl bg-background border border-gray-700/50 text-gray-300 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+        )}
       </main>
 
       {selectedMovie && (
