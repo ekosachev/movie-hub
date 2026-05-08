@@ -4,6 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import { mockMovies, mockCustomCollections } from '../mockData';
 import { MovieCard } from '../components/MovieCard';
 import { CreateCollectionModal, NewCollectionData } from '../components/CreateCollectionModal';
+import { ApiError } from '../api/http';
+import * as collectionsApi from '../api/collections';
 
 type TabType = 'favorites' | 'watched' | 'watchlist' | 'collections' | 'admin' | 'content';
 
@@ -12,12 +14,15 @@ export const ProfilePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('favorites');
   const [collections, setCollections] = useState(mockCustomCollections);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [createCollectionError, setCreateCollectionError] = useState('');
+  const [isCreatingCollection, setIsCreatingCollection] = useState(false);
 
   if (!user) return null;
 
   const role = user.role;
   const canSeeAdminTab = role === 'admin';
   const canManageMovies = hasPermission('update_movies');
+  const canManageCollections = hasPermission('update_collections');
 
   // Фейковые списки для демонстрации (позже подключим API)
   const lists = useMemo(() => ({ favorites: [], watched: [], watchlist: [] }), []);
@@ -62,20 +67,41 @@ export const ProfilePage: React.FC = () => {
   };
 
   const handleCreateCollection = (data: NewCollectionData) => {
-    const newCollection = {
-      id: Date.now(), // Генерируем временный ID
-      title: data.title,
-      description: data.description,
-      isPublic: data.isPublic,
-      movieIds: [], // Изначально пусто
-      rating: 0
-    };
-    
-    // Мутируем моковый массив, чтобы на странице Подборки (CollectionPage) эта коллекция тоже находилась!
-    mockCustomCollections.unshift(newCollection);
-    
-    setCollections(prev => [newCollection, ...prev]);
-    setIsCreateModalOpen(false);
+    if (!canManageCollections) {
+      setCreateCollectionError('Недостаточно прав для создания подборок (update_collections).');
+      return;
+    }
+
+    setCreateCollectionError('');
+    setIsCreatingCollection(true);
+
+    collectionsApi
+      .createCollection({ name: data.title, is_public: data.isPublic }, user.token)
+      .then(res => {
+        const created = res.data;
+        if (!res.success || !created) throw new Error('Не удалось создать подборку');
+
+        // description пока только локально — бэк хранит только name/is_public
+        const newCollection = {
+          id: created.id,
+          title: created.name,
+          description: data.description,
+          isPublic: created.is_public,
+          movieIds: [],
+          rating: 0,
+        };
+
+        mockCustomCollections.unshift(newCollection);
+        setCollections(prev => [newCollection, ...prev]);
+        setIsCreateModalOpen(false);
+      })
+      .catch((err: unknown) => {
+        if (err instanceof ApiError) setCreateCollectionError(err.message);
+        else setCreateCollectionError(err instanceof Error ? err.message : 'Не удалось создать подборку');
+      })
+      .finally(() => {
+        setIsCreatingCollection(false);
+      });
   };
 
   return (
@@ -163,15 +189,22 @@ export const ProfilePage: React.FC = () => {
               {/* Кнопка создания новой подборки */}
               <button 
                 onClick={() => setIsCreateModalOpen(true)}
-                className="w-full bg-card border-2 border-dashed border-gray-600 hover:border-accent hover:bg-accent/5 text-gray-400 hover:text-accent font-bold py-6 rounded-2xl transition-all duration-300 flex flex-col items-center justify-center gap-2 group"
+                disabled={!canManageCollections || isCreatingCollection}
+                className="w-full bg-card border-2 border-dashed border-gray-600 hover:border-accent hover:bg-accent/5 text-gray-400 hover:text-accent disabled:opacity-50 disabled:cursor-not-allowed font-bold py-6 rounded-2xl transition-all duration-300 flex flex-col items-center justify-center gap-2 group"
               >
                 <div className="w-12 h-12 rounded-full bg-gray-800 group-hover:bg-accent/20 flex items-center justify-center transition-colors">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
                 </div>
-                <span>Создать новую подборку</span>
+                <span>{isCreatingCollection ? 'Создаём...' : 'Создать новую подборку'}</span>
               </button>
+
+              {createCollectionError && (
+                <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm px-4 py-3 rounded-xl">
+                  {createCollectionError}
+                </div>
+              )}
 
               {collections.length > 0 ? collections.map(col => (
                 <Link to={`/collection/${col.id}`} key={col.id} className="bg-[#2C2E33] p-5 rounded-2xl border border-transparent hover:border-accent/30 transition-colors flex flex-col gap-3 group block">

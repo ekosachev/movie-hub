@@ -1,18 +1,47 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { mockCustomCollections, mockMovies } from '../mockData';
 import { MovieCard } from '../components/MovieCard';
 import { MovieDetailsModal } from '../components/MovieDetailsModal';
+import * as collectionsApi from '../api/collections';
 
 export const CollectionPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [selectedMovieId, setSelectedMovieId] = useState<number | null>(null);
+  const [serverCollection, setServerCollection] = useState<collectionsApi.Collection | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  // Ищем подборку по ID из URL
-  const collection = mockCustomCollections.find(c => c.id === Number(id));
+  const collectionId = Number(id);
+  const localCollection = mockCustomCollections.find(c => c.id === collectionId);
 
-  if (!collection) {
+  useEffect(() => {
+    if (!Number.isFinite(collectionId)) return;
+    if (localCollection) return;
+
+    setLoading(true);
+    collectionsApi
+      .getCollectionById(collectionId)
+      .then(res => {
+        if (res.success && res.data) setServerCollection(res.data);
+      })
+      .finally(() => setLoading(false));
+  }, [collectionId, localCollection]);
+
+  const title = localCollection?.title ?? serverCollection?.name ?? '';
+  const isPublic = localCollection?.isPublic ?? serverCollection?.is_public ?? false;
+  const description = localCollection?.description ?? '';
+  const movieIds = useMemo(() => localCollection?.movieIds ?? [], [localCollection]);
+
+  if (!localCollection && loading) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center text-center gap-4 py-20 text-gray-400">
+        Загружаем подборку...
+      </div>
+    );
+  }
+
+  if (!localCollection && !serverCollection) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center text-center gap-4 py-20">
         <h2 className="text-3xl font-bold text-gray-500">Подборка не найдена 🥲</h2>
@@ -27,7 +56,7 @@ export const CollectionPage: React.FC = () => {
   }
 
   // Получаем фильмы, которые находятся в этой подборке
-  const collectionMovies = mockMovies.filter(movie => collection.movieIds.includes(movie.id));
+  const collectionMovies = mockMovies.filter(movie => movieIds.includes(movie.id));
   const selectedMovie = mockMovies.find(m => m.id === selectedMovieId);
 
   return (
@@ -53,7 +82,7 @@ export const CollectionPage: React.FC = () => {
 
         <div className="relative z-10 flex flex-col gap-3">
           <div className="flex items-center gap-3 mb-1">
-            {collection.isPublic ? (
+            {isPublic ? (
               <span className="text-xs bg-accent/20 border border-accent/40 text-accent px-3 py-1 rounded-full font-bold tracking-widest uppercase">
                 Публичная
               </span>
@@ -63,17 +92,17 @@ export const CollectionPage: React.FC = () => {
               </span>
             )}
             <span className="text-sm font-medium text-gray-400">
-              {collection.movieIds.length} фильмов
+              {movieIds.length} фильмов
             </span>
           </div>
           
           <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight">
-            {collection.title}
+            {title}
           </h1>
           
-          {collection.description && (
+          {description && (
             <p className="text-gray-400 text-lg max-w-2xl mt-2 leading-relaxed">
-              {collection.description}
+              {description}
             </p>
           )}
         </div>
