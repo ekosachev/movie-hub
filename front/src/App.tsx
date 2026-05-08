@@ -6,6 +6,7 @@ import { CollectionPage } from './pages/CollectionPage';
 import { AuthPage } from './pages/AuthPage';
 import { OnboardingPage } from './pages/OnboardingPage';
 import { Header } from './components/Header';
+import { RequireAuth } from './routing/RequireAuth';
 
 const GlobalLayout: React.FC<{
   searchQuery: string;
@@ -31,8 +32,22 @@ const App: React.FC = () => {
 
       <Route element={<GlobalLayout searchQuery={searchQuery} setSearchQuery={setSearchQuery} />}>
         <Route path="/" element={<HomePage searchQuery={searchQuery} />} />
-        <Route path="/profile" element={<ProfilePage />} />
-        <Route path="/collection/:id" element={<CollectionPage />} />
+        <Route
+          path="/profile"
+          element={
+            <RequireAuth>
+              <ProfilePage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/collection/:id"
+          element={
+            <RequireAuth>
+              <CollectionPage />
+            </RequireAuth>
+          }
+        />
       </Route>
     </Routes>
   );

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { mockMovies, mockCustomCollections, currentUser as mockAdmin } from '../mockData';
+import { mockMovies, mockCustomCollections } from '../mockData';
 import { MovieCard } from '../components/MovieCard';
 import { CreateCollectionModal, NewCollectionData } from '../components/CreateCollectionModal';
 
