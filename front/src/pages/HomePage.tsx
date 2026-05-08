@@ -93,7 +93,7 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
   return (
     <div className="flex-1 grid grid-cols-12 gap-6 relative">
       <aside className="col-span-12 md:col-span-4 lg:col-span-3 bg-card rounded-2xl p-6 shadow-lg border border-gray-700/30 sticky top-[104px] h-fit">
-        <FilterPanel onApply={applyFilters} onReset={resetFilters} />
+        <FilterPanel value={activeFilters} onApply={applyFilters} onReset={resetFilters} />
       </aside>
 
       <main className="col-span-12 md:col-span-8 lg:col-span-9 bg-card rounded-2xl p-6 shadow-lg border border-gray-700/30 min-h-[500px]">

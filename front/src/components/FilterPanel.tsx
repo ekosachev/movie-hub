@@ -13,14 +13,15 @@ export interface FilterSettings {
 interface FilterPanelProps {
   onApply?: (filters: FilterSettings) => void;
   onReset?: () => void;
+  value?: FilterSettings | null;
 }
 
-export const FilterPanel: React.FC<FilterPanelProps> = ({ onApply, onReset }) => {
+export const FilterPanel: React.FC<FilterPanelProps> = ({ onApply, onReset, value }) => {
   const { user, hasPermission } = useAuth();
   const canUpdateTags = hasPermission('update_tags');
 
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [selectedRating, setSelectedRating] = useState<string>('Все');
+  const [selectedTags, setSelectedTags] = useState<string[]>(value?.tags ?? []);
+  const [selectedRating, setSelectedRating] = useState<string>(value?.rating ?? 'Все');
 
   const [newTagName, setNewTagName] = useState('');
   const [tagLoading, setTagLoading] = useState(false);
@@ -62,8 +63,23 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onApply, onReset }) =>
   const ratingOptions = ['Все', 'От 7+', 'От 8+', 'От 9+'];
 
   const currentYear = new Date().getFullYear();
-  const [yearFrom, setYearFrom] = useState<number | string>(currentYear - 5);
-  const [yearTo, setYearTo] = useState<number | string>(currentYear);
+  const [yearFrom, setYearFrom] = useState<number | string>(value?.yearFrom ?? currentYear - 5);
+  const [yearTo, setYearTo] = useState<number | string>(value?.yearTo ?? currentYear);
+
+  React.useEffect(() => {
+    if (!value) {
+      setSelectedTags([]);
+      setSelectedRating('Все');
+      setYearFrom(currentYear - 5);
+      setYearTo(currentYear);
+      return;
+    }
+
+    setSelectedTags(value.tags);
+    setSelectedRating(value.rating);
+    setYearFrom(value.yearFrom);
+    setYearTo(value.yearTo);
+  }, [value, currentYear]);
 
   const resetFilters = () => {
     setSelectedTags([]);
