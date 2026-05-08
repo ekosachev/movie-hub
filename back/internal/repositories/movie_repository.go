@@ -79,7 +79,7 @@ func (r *MovieRepository) Delete(ctx context.Context, filter *models.Movie) (int
 	return gorm.G[models.Movie](r.db).Where(filter).Delete(ctx)
 }
 
-func (r *MovieRepository) FindWithFilters(ctx context.Context, filter dto.MovieFilterRequest) ([]models.Movie, error) {
+func (r *MovieRepository) FindWithFilters(ctx context.Context, filter dto.MovieFilterRequest) ([]models.Movie, int64, error) {
 	var movies []models.Movie
 
 	query := r.db.Model(&models.Movie{})
@@ -115,6 +115,9 @@ func (r *MovieRepository) FindWithFilters(ctx context.Context, filter dto.MovieF
 
 	query = query.Offset(int(filter.Offset))
 
-	err := query.Preload("Tag").Find(&movies).Error
-	return movies, err
+	var count int64 = 0
+
+	err := query.Preload("Tag").Find(&movies).Count(&count).Error
+
+	return movies, count, err
 }
