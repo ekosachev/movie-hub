@@ -5,3 +5,9 @@ type APIResponse struct {
 	Data    any    `json:"data,omitempty"`
 	Error   string `json:"error,omitempty"`
 }
+
+type PaginatedResponse struct {
+	Count  uint `json:"count"`
+	Offset uint `json:"offset"`
+	Items  any  `json:"items"`
+}
