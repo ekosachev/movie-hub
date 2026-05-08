@@ -279,7 +279,7 @@ func (h *MovieHanlder) FindWithFilters(c *gin.Context) {
 		return
 	}
 
-	movies, err := h.Service.FindWithFilters(c, filter)
+	movies, count, err := h.Service.FindWithFilters(c, filter)
 
 	if err != nil {
 		h.Logger.Error("Failed to search movies: ", slog.String("error", err.Error()))
@@ -308,7 +308,14 @@ func (h *MovieHanlder) FindWithFilters(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: resp})
+	c.JSON(http.StatusOK, dto.APIResponse{
+		Success: true,
+		Data: dto.PaginatedResponse{
+			Count:  uint(count),
+			Offset: filter.Offset,
+			Items:  resp,
+		},
+	})
 }
 
 func (h *MovieHanlder) GetAllComments(c *gin.Context) {
