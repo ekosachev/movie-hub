@@ -4,6 +4,13 @@ interface ApiResponse<T> {
   error?: string;
 }
 
+export interface CommentReaction {
+  id: number;
+  is_positive: boolean;
+  user_id: number;
+  comment_id: number;
+}
+
 export interface CommentResponse {
   id: number;
   content: string;
@@ -11,6 +18,7 @@ export interface CommentResponse {
   user_id: number;
   movie_id: number;
   parent_comment_id?: number | null;
+  reactions?: CommentReaction[];
 }
 
 export interface RateResponse {

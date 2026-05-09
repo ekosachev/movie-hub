@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { postComment, postRate, updateRate, deleteRate, decodeUserId, fetchComments, fetchRates, deleteComment, createCast, linkCastToMovie, updateMovie, deleteMovie, uploadPoster, createReaction, updateReaction, deleteReaction, updateCast, deleteCast } from '../api/movies';
+import { postComment, postRate, updateRate, deleteRate, fetchComments, fetchRates, deleteComment, createCast, linkCastToMovie, updateMovie, deleteMovie, uploadPoster, createReaction, updateReaction, deleteReaction, updateCast, deleteCast, CommentReaction } from '../api/movies';
 import { usePlaylists } from '../playlists/usePlaylists';
 
 interface Actor {
@@ -95,7 +95,7 @@ function StarRow({
 
 export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onClose, onDeleted, onUpdated }) => {
   const { user, hasPermission } = useAuth();
-  const userId = user?.token ? decodeUserId(user.token) : null;
+  const userId = user?.id ?? null;
   const canManageComments = hasPermission('manage_comments');
   const canManageCast = hasPermission('manage_cast');
   const canUpdateMovies = hasPermission('update_movies');
@@ -118,6 +118,7 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onC
   } = usePlaylists();
 
   const [userReactions, setUserReactions] = useState<Record<number, { id: number; isPositive: boolean }>>({});
+  const [reactionPending, setReactionPending] = useState<Record<number, boolean>>({});
 
   const [comments, setComments] = useState<Comment[]>(movie.comments || []);
   const [newCommentText, setNewCommentText] = useState('');
@@ -144,17 +145,31 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onC
   const [ratingError, setRatingError] = useState('');
   const [ratingSuccess, setRatingSuccess] = useState(false);
 
+  const applyComments = (data: ReturnType<typeof fetchComments> extends Promise<infer T> ? T : never) => {
+    const reactions: Record<number, { id: number; isPositive: boolean }> = {};
+    const mapped = data.map(c => {
+      const likes = (c.reactions ?? []).filter((r: CommentReaction) => r.is_positive).length;
+      const dislikes = (c.reactions ?? []).filter((r: CommentReaction) => !r.is_positive).length;
+      const myReaction = userId ? (c.reactions ?? []).find((r: CommentReaction) => r.user_id === userId) : undefined;
+      if (myReaction) {
+        reactions[c.id] = { id: myReaction.id, isPositive: myReaction.is_positive };
+      }
+      return {
+        id: c.id,
+        author: c.username || `Пользователь ${c.user_id}`,
+        text: c.content,
+        likes,
+        dislikes,
+        userVote: myReaction ? (myReaction.is_positive ? 'like' : 'dislike') : undefined,
+      } as Comment;
+    });
+setComments(mapped);
+    setUserReactions(reactions);
+  };
+
   useEffect(() => {
     fetchComments(movie.id).then(data => {
-      if (data.length > 0) {
-        setComments(data.map(c => ({
-          id: c.id,
-          author: c.username || `Пользователь ${c.user_id}`,
-          text: c.content,
-          likes: 0,
-          dislikes: 0,
-        })));
-      }
+      if (data.length > 0) applyComments(data);
     });
     fetchRates(movie.id).then(data => {
       if (userId && data.length > 0) {
@@ -182,13 +197,7 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onC
       await postComment(movie.id, newCommentText.trim(), userId, user.token);
       setNewCommentText('');
       const updated = await fetchComments(movie.id);
-      setComments(updated.map(c => ({
-        id: c.id,
-        author: c.username || `Пользователь ${c.user_id}`,
-        text: c.content,
-        likes: 0,
-        dislikes: 0,
-      })));
+      applyComments(updated);
     } catch (err) {
       setCommentError(err instanceof Error ? err.message : 'Ошибка');
     } finally {
@@ -238,7 +247,8 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onC
   };
 
   const handleReaction = async (commentId: number, isPositive: boolean) => {
-    if (!user?.token) return;
+    if (!user?.token || reactionPending[commentId]) return;
+    setReactionPending(prev => ({ ...prev, [commentId]: true }));
     const existing = userReactions[commentId];
     const voteKey = isPositive ? 'like' : 'dislike';
     const otherKey = isPositive ? 'dislike' : 'like';
@@ -276,6 +286,8 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onC
       }
     } catch (err) {
       console.error(err);
+    } finally {
+      setReactionPending(prev => { const next = { ...prev }; delete next[commentId]; return next; });
     }
     void otherKey;
   };
@@ -765,7 +777,8 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onC
                       <div className="flex items-center gap-3">
                         <button
                           onClick={() => handleLike(comment.id)}
-                          className={`text-xs font-bold flex items-center gap-1.5 transition-all focus:outline-none ${comment.userVote === 'like' ? 'text-honey opacity-100 scale-110' : 'text-accent opacity-80 hover:opacity-100'}`}
+                          disabled={!!reactionPending[comment.id]}
+                          className={`text-xs font-bold flex items-center gap-1.5 transition-all focus:outline-none disabled:opacity-50 ${comment.userVote === 'like' ? 'text-honey opacity-100 scale-110' : 'text-accent opacity-80 hover:opacity-100'}`}
                         >
                           <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
                             <path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z" />
@@ -774,7 +787,8 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onC
                         </button>
                         <button
                           onClick={() => handleDislike(comment.id)}
-                          className={`text-xs font-bold flex items-center gap-1.5 transition-all focus:outline-none ${comment.userVote === 'dislike' ? 'text-red-500 opacity-100 scale-110' : 'text-gray-400 opacity-80 hover:opacity-100'}`}
+                          disabled={!!reactionPending[comment.id]}
+                          className={`text-xs font-bold flex items-center gap-1.5 transition-all focus:outline-none disabled:opacity-50 ${comment.userVote === 'dislike' ? 'text-red-500 opacity-100 scale-110' : 'text-gray-400 opacity-80 hover:opacity-100'}`}
                         >
                           <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
                             <path d="M15 3H6c-.83 0-1.54.5-1.84 1.22l-3.02 7.05c-.09.23-.14.47-.14.73v2c0 1.1.9 2 2 2h6.31l-.95 4.57-.03.32c0 .41.17.79.44 1.06L9.83 23l6.59-6.59c.36-.36.58-.86.58-1.41V5c0-1.1-.9-2-2-2zm4 0v12h4V3h-4z" />
