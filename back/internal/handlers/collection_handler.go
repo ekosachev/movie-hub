@@ -35,7 +35,13 @@ func (h *CollectionHandler) RegisterRoutes(router *gin.RouterGroup) {
 			protectedGroup.POST("/", h.Create)
 			protectedGroup.PATCH("/:id", h.Update)
 			protectedGroup.DELETE("/:id", h.Delete)
+			protectedGroup.POST("/:id/movies", h.AddMovie)
+			protectedGroup.DELETE("/:id/movies/:movieId", h.RemoveMovie)
 		}
+	}
+	meGroup := router.Group("/me").Use(middleware.AuthMiddleware())
+	{
+		meGroup.GET("/collections", h.GetMyCollections)
 	}
 }
 
@@ -91,12 +97,17 @@ func (h *CollectionHandler) GetByID(c *gin.Context) {
 		sendError(c, http.StatusNotFound, "Collection not found")
 		return
 	}
+	var movieIDs []uint
+	for _, m := range collection.MovieCollection {
+		movieIDs = append(movieIDs, m.ID)
+	}
 
 	resp := dto.CollectionResponse{
 		ID:       collection.ID,
 		Name:     collection.Name,
 		IsPublic: collection.IsPublic,
 		UserID:   collection.UserID,
+		MovieIDs: movieIDs,
 	}
 	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: resp})
 }
@@ -128,7 +139,6 @@ func (h *CollectionHandler) Update(c *gin.Context) {
 		sendError(c, http.StatusNotFound, "Collection not found")
 		return
 	}
-
 	userID := int(c.MustGet("userID").(float64))
 	if collection.UserID != userID {
 		h.Logger.Warn("Access denied: not the owner", slog.Int("user_id", userID), slog.Int("collection_id", id))
@@ -189,5 +199,88 @@ func (h *CollectionHandler) Delete(c *gin.Context) {
 		return
 	}
 	h.Logger.Info("Collection deleted", slog.Int("collection_id", id))
+	c.JSON(http.StatusOK, dto.APIResponse{Success: true})
+}
+
+func (h *CollectionHandler) GetMyCollections(c *gin.Context) {
+	userID := int(c.MustGet("userID").(float64))
+	collections, err := h.Service.GetByUserID(c, uint(userID))
+	if err != nil {
+		h.Logger.Error("Failed to get user collections", slog.Int("user_id", userID), slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Could not get collections")
+		return
+	}
+
+	var respData []dto.CollectionResponse
+	for _, coll := range collections {
+		var movieIDs []uint
+		for _, m := range coll.MovieCollection {
+			movieIDs = append(movieIDs, m.ID)
+		}
+		respData = append(respData, dto.CollectionResponse{
+			ID:       coll.ID,
+			Name:     coll.Name,
+			IsPublic: coll.IsPublic,
+			UserID:   coll.UserID,
+			MovieIDs: movieIDs,
+		})
+	}
+	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: respData})
+}
+
+func (h *CollectionHandler) AddMovie(c *gin.Context) {
+	collectionID, err := strconv.Atoi(c.Param("id"))
+	if err != nil || collectionID <= 0 {
+		sendError(c, http.StatusBadRequest, "Invalid collection ID")
+		return
+	}
+	var req dto.AddMovieToCollectionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		sendError(c, http.StatusBadRequest, "Invalid data format")
+		return
+	}
+	userID := int(c.MustGet("userID").(float64))
+	collection, err := h.Service.GetByID(c, uint(collectionID))
+
+	if err != nil || collection == nil {
+		sendError(c, http.StatusNotFound, "Collection not found")
+		return
+	}
+	if collection.UserID != userID {
+		sendError(c, http.StatusForbidden, "You can only modify your own collections")
+		return
+	}
+	if err := h.Service.AddMovie(c, uint(collectionID), req.MovieID); err != nil {
+		h.Logger.Error("Failed to add movie", slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Could not add movie to collection")
+		return
+	}
+	c.JSON(http.StatusOK, dto.APIResponse{Success: true})
+}
+
+func (h *CollectionHandler) RemoveMovie(c *gin.Context) {
+	collectionID, err1 := strconv.Atoi(c.Param("id"))
+	movieID, err2 := strconv.Atoi(c.Param("movieId"))
+
+	if err1 != nil || err2 != nil || collectionID <= 0 || movieID <= 0 {
+		sendError(c, http.StatusBadRequest, "Invalid IDs")
+		return
+	}
+	userID := int(c.MustGet("userID").(float64))
+	collection, err := h.Service.GetByID(c, uint(collectionID))
+
+	if err != nil || collection == nil {
+		sendError(c, http.StatusNotFound, "Collection not found")
+		return
+	}
+	if collection.UserID != userID {
+		sendError(c, http.StatusForbidden, "You can only modify your own collections")
+		return
+	}
+	if err := h.Service.RemoveMovie(c, uint(collectionID), uint(movieID)); err != nil {
+		h.Logger.Error("Failed to remove movie", slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Could not remove movie from collection")
+		return
+	}
 	c.JSON(http.StatusOK, dto.APIResponse{Success: true})
 }

@@ -24,17 +24,12 @@ func (r *CollectionRepository) Query(ctx context.Context, filter *models.Collect
 }
 
 func (r *CollectionRepository) GetByID(ctx context.Context, id uint) (*models.Collection, error) {
-	collections, err := r.Query(ctx, &models.Collection{Model: gorm.Model{ID: id}})
-
+	var collection models.Collection
+	err := r.db.WithContext(ctx).Preload("MovieCollection").First(&collection, id).Error
 	if err != nil {
 		return nil, err
 	}
-
-	if len(collections) == 0 {
-		return nil, nil
-	}
-
-	return &collections[0], nil
+	return &collection, nil
 }
 
 func (r *CollectionRepository) Update(ctx context.Context, filter *models.Collection, obj models.Collection) (int, error) {
@@ -43,4 +38,22 @@ func (r *CollectionRepository) Update(ctx context.Context, filter *models.Collec
 
 func (r *CollectionRepository) Delete(ctx context.Context, filter *models.Collection) (int, error) {
 	return gorm.G[models.Collection](r.db).Where(filter).Delete(ctx)
+}
+
+func (r *CollectionRepository) GetByUserID(ctx context.Context, userID uint) ([]models.Collection, error) {
+	var collections []models.Collection
+	err := r.db.WithContext(ctx).Preload("MovieCollection").Where("user_id = ?", userID).Find(&collections).Error
+	return collections, err
+}
+
+func (r *CollectionRepository) AddMovie(ctx context.Context, collectionID uint, movieID uint) error {
+	collection := models.Collection{Model: gorm.Model{ID: collectionID}}
+	movie := models.Movie{Model: gorm.Model{ID: movieID}}
+	return r.db.WithContext(ctx).Model(&collection).Association("MovieCollection").Append(&movie)
+}
+
+func (r *CollectionRepository) RemoveMovie(ctx context.Context, collectionID uint, movieID uint) error {
+	collection := models.Collection{Model: gorm.Model{ID: collectionID}}
+	movie := models.Movie{Model: gorm.Model{ID: movieID}}
+	return r.db.WithContext(ctx).Model(&collection).Association("MovieCollection").Delete(&movie)
 }
