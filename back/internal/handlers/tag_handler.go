@@ -30,6 +30,7 @@ func (h *TagHandler) RegisterRoutes(router *gin.RouterGroup) {
 	{
 		// register routes here
 		group.GET("/:id", h.GetByID)
+		group.GET("", h.GetAll)
 
 		protectedGroup := group.Group("/").Use(middleware.AuthMiddleware()).Use(middleware.PermissionMiddleware("update_tags"))
 		{
@@ -97,6 +98,27 @@ func (h *TagHandler) GetByID(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: resp})
+}
+
+func (h *TagHandler) GetAll(c *gin.Context) {
+	tags, err := h.Service.GetAll(c)
+
+	if err != nil {
+		sendError(c, http.StatusInternalServerError, "Internal server error")
+		h.Logger.Error("Failed to get tags", slog.String("error", err.Error()))
+		return
+	}
+
+	response := make([]dto.TagResponse, len(tags))
+
+	for i, t := range tags {
+		response[i] = dto.TagResponse{
+			ID:   t.ID,
+			Name: t.Name,
+		}
+	}
+
+	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: response})
 }
 
 func (h *TagHandler) Update(c *gin.Context) {
