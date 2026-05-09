@@ -25,8 +25,15 @@ export type AppRole = 'user' | 'content_manager' | 'admin';
 
 export function roleFromPermissions(permissions: string[] | undefined): AppRole {
   const set = new Set(permissions ?? []);
-  if (set.has('ban_users') || set.has('remove_comments')) return 'admin';
-  // backend uses "update_movies" for create/update/delete movies
+  // backend (seed/roles): delete_users, manage_comments; legacy tokens may still use old names
+  if (
+    set.has('delete_users') ||
+    set.has('manage_comments') ||
+    set.has('ban_users') ||
+    set.has('remove_comments')
+  ) {
+    return 'admin';
+  }
   if (set.has('create_movies') || set.has('update_movies')) return 'content_manager';
   return 'user';
 }

@@ -26,7 +26,10 @@ export const ProfilePage: React.FC = () => {
   if (!user) return null;
 
   const role: 'user' | 'content_manager' | 'admin' =
-    hasPermission('ban_users') || hasPermission('remove_comments')
+    hasPermission('delete_users') ||
+      hasPermission('manage_comments') ||
+      hasPermission('ban_users') ||
+      hasPermission('remove_comments')
       ? 'admin'
       : hasPermission('update_movies')
         ? 'content_manager'
