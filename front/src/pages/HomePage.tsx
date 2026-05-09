@@ -24,6 +24,7 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
   const [serverItems, setServerItems] = useState<typeof mockMovies>([]);
   const [serverCount, setServerCount] = useState<number>(0);
   const [tagNameToId, setTagNameToId] = useState<Record<string, number> | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const pageSize = 16;
   const pageFromUrl = Number(searchParams.get('page') ?? '1');
@@ -187,6 +188,7 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
           title: it.title,
           releaseYear: Number(it.release_date?.slice(0, 4)) || 0,
           tags: (it.tags ?? []).map(t => t.name),
+          tagIds: (it.tags ?? []).map(t => t.id),
           rating: 0,
           posterUrl: it.poster_path,
           description: it.description,
@@ -218,7 +220,7 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
       });
 
     return () => abort.abort();
-  }, [searchQuery, activeFilters, pageSize, offset, shouldUseServer]);
+  }, [searchQuery, activeFilters, pageSize, offset, shouldUseServer, refreshKey]);
 
   const filteredMovies = useMemo(() => {
     if (shouldUseServer && (serverItems.length > 0 || serverCount > 0 || loading || error)) return serverItems;
@@ -369,13 +371,25 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
         <MovieDetailsModal
           movie={selectedMovie}
           onClose={() => setSelectedMovieId(null)}
+          onDeleted={() => {
+            setServerItems(prev => prev.filter(m => m.id !== selectedMovie.id));
+            setSelectedMovieId(null);
+          }}
+          onUpdated={fields => {
+            setServerItems(prev => prev.map(m =>
+              m.id === selectedMovie.id ? { ...m, ...fields } : m
+            ));
+          }}
         />
       )}
 
       {showCreateMovie && (
         <CreateMovieModal
           onClose={() => setShowCreateMovie(false)}
-          onCreated={() => {}}
+          onCreated={() => {
+            setRefreshKey(k => k + 1);
+            setShowCreateMovie(false);
+          }}
         />
       )}
     </div>

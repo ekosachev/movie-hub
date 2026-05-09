@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { postComment, postRate, decodeUserId, fetchComments, fetchRates, deleteComment, createCast, linkCastToMovie } from '../api/movies';
+import { postComment, postRate, updateRate, deleteRate, decodeUserId, fetchComments, fetchRates, deleteComment, createCast, linkCastToMovie, updateMovie, deleteMovie, uploadPoster, createReaction, updateReaction, deleteReaction, updateCast, deleteCast } from '../api/movies';
 import { usePlaylists } from '../playlists/usePlaylists';
 
 interface Actor {
+  id?: number;
   name: string;
   photoUrl?: string;
 }
@@ -22,6 +23,7 @@ export interface MovieDetails {
   title: string;
   releaseYear: number;
   tags: string[];
+  tagIds?: number[];
   rating: number;
   posterUrl?: string;
   description?: string;
@@ -32,6 +34,8 @@ export interface MovieDetails {
 interface MovieDetailsModalProps {
   movie: MovieDetails;
   onClose: () => void;
+  onDeleted?: () => void;
+  onUpdated?: (fields: { title?: string; description?: string }) => void;
 }
 
 interface CriteriaRating {
@@ -89,11 +93,21 @@ function StarRow({
   );
 }
 
-export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onClose }) => {
+export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onClose, onDeleted, onUpdated }) => {
   const { user, hasPermission } = useAuth();
   const userId = user?.token ? decodeUserId(user.token) : null;
   const canManageComments = hasPermission('manage_comments');
   const canManageCast = hasPermission('manage_cast');
+  const canUpdateMovies = hasPermission('update_movies');
+
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [editTitle, setEditTitle] = useState(movie.title);
+  const [editDescription, setEditDescription] = useState(movie.description ?? '');
+  const [editTagIds, setEditTagIds] = useState(movie.tagIds?.join(', ') ?? '');
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [posterUploading, setPosterUploading] = useState(false);
   const {
     state: playlistsState,
     isInList,
@@ -102,6 +116,8 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onC
     addMovieToCollection,
     removeMovieFromCollection,
   } = usePlaylists();
+
+  const [userReactions, setUserReactions] = useState<Record<number, { id: number; isPositive: boolean }>>({});
 
   const [comments, setComments] = useState<Comment[]>(movie.comments || []);
   const [newCommentText, setNewCommentText] = useState('');
@@ -115,9 +131,15 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onC
   const [newActorPhoto, setNewActorPhoto] = useState('');
   const [actorLoading, setActorLoading] = useState(false);
   const [actorError, setActorError] = useState('');
+  const [editingActorIdx, setEditingActorIdx] = useState<number | null>(null);
+  const [editActorName, setEditActorName] = useState('');
+  const [editActorPhoto, setEditActorPhoto] = useState('');
+  const [editActorLoading, setEditActorLoading] = useState(false);
+  const [editActorError, setEditActorError] = useState('');
 
   const [ratings, setRatings] = useState<CriteriaRating>({ plot: null, performance: null, sfx: null });
   const [hoveredCriteria, setHoveredCriteria] = useState<Record<string, number | null>>({ plot: null, performance: null, sfx: null });
+  const [rateId, setRateId] = useState<number | null>(null);
   const [ratingLoading, setRatingLoading] = useState(false);
   const [ratingError, setRatingError] = useState('');
   const [ratingSuccess, setRatingSuccess] = useState(false);
@@ -138,6 +160,7 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onC
       if (userId && data.length > 0) {
         const myRate = data.find(r => r.user_id === userId);
         if (myRate) {
+          setRateId(myRate.id);
           setRatings({ plot: myRate.plot, performance: myRate.performance, sfx: myRate.sfx });
           setRatingSuccess(true);
         }
@@ -185,7 +208,12 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onC
     setRatingLoading(true);
     setRatingError('');
     try {
-      await postRate(movie.id, ratings.plot, ratings.performance, ratings.sfx, userId, user.token);
+      if (rateId) {
+        await updateRate(rateId, ratings.plot, ratings.performance, ratings.sfx, user.token);
+      } else {
+        const result = await postRate(movie.id, ratings.plot, ratings.performance, ratings.sfx, userId, user.token);
+        setRateId(result.id);
+      }
       setRatingSuccess(true);
     } catch (err) {
       setRatingError(err instanceof Error ? err.message : 'Ошибка');
@@ -194,14 +222,65 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onC
     }
   };
 
-  const handleLike = (commentId: number) => {
-    setComments(comments.map(c => {
-      if (c.id !== commentId) return c;
-      if (c.userVote === 'like') return { ...c, likes: c.likes - 1, userVote: undefined };
-      if (c.userVote === 'dislike') return { ...c, likes: c.likes + 1, dislikes: (c.dislikes || 0) - 1, userVote: 'like' };
-      return { ...c, likes: c.likes + 1, userVote: 'like' };
-    }));
+  const handleDeleteRating = async () => {
+    if (!user?.token || !rateId) return;
+    setRatingLoading(true);
+    try {
+      await deleteRate(rateId, user.token);
+      setRateId(null);
+      setRatings({ plot: null, performance: null, sfx: null });
+      setRatingSuccess(false);
+    } catch (err) {
+      setRatingError(err instanceof Error ? err.message : 'Ошибка');
+    } finally {
+      setRatingLoading(false);
+    }
   };
+
+  const handleReaction = async (commentId: number, isPositive: boolean) => {
+    if (!user?.token) return;
+    const existing = userReactions[commentId];
+    const voteKey = isPositive ? 'like' : 'dislike';
+    const otherKey = isPositive ? 'dislike' : 'like';
+
+    try {
+      if (existing) {
+        if (existing.isPositive === isPositive) {
+          await deleteReaction(existing.id, user.token);
+          setUserReactions(prev => { const next = { ...prev }; delete next[commentId]; return next; });
+          setComments(prev => prev.map(c => c.id !== commentId ? c : {
+            ...c,
+            likes: isPositive ? c.likes - 1 : c.likes,
+            dislikes: !isPositive ? (c.dislikes || 0) - 1 : c.dislikes,
+            userVote: undefined,
+          }));
+        } else {
+          await updateReaction(existing.id, isPositive, user.token);
+          setUserReactions(prev => ({ ...prev, [commentId]: { id: existing.id, isPositive } }));
+          setComments(prev => prev.map(c => c.id !== commentId ? c : {
+            ...c,
+            likes: isPositive ? c.likes + 1 : c.likes - 1,
+            dislikes: !isPositive ? (c.dislikes || 0) + 1 : (c.dislikes || 0) - 1,
+            userVote: voteKey,
+          }));
+        }
+      } else {
+        const reaction = await createReaction(commentId, isPositive, user.token);
+        setUserReactions(prev => ({ ...prev, [commentId]: { id: reaction.id, isPositive } }));
+        setComments(prev => prev.map(c => c.id !== commentId ? c : {
+          ...c,
+          likes: isPositive ? c.likes + 1 : c.likes,
+          dislikes: !isPositive ? (c.dislikes || 0) + 1 : c.dislikes,
+          userVote: voteKey,
+        }));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+    void otherKey;
+  };
+
+  const handleLike = (commentId: number) => handleReaction(commentId, true);
 
   const handleDeleteComment = async (commentId: number) => {
     if (!user?.token) return;
@@ -221,7 +300,7 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onC
     try {
       const castId = await createCast(newActorName.trim(), '', newActorPhoto.trim(), user.token);
       await linkCastToMovie(movie.id, castId, newActorRole.trim(), user.token);
-      setCast(prev => [...prev, { name: newActorName.trim(), photoUrl: newActorPhoto.trim() || undefined }]);
+      setCast(prev => [...prev, { id: castId, name: newActorName.trim(), photoUrl: newActorPhoto.trim() || undefined }]);
       setNewActorName('');
       setNewActorRole('');
       setNewActorPhoto('');
@@ -233,13 +312,80 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onC
     }
   };
 
-  const handleDislike = (commentId: number) => {
-    setComments(comments.map(c => {
-      if (c.id !== commentId) return c;
-      if (c.userVote === 'dislike') return { ...c, dislikes: (c.dislikes || 0) - 1, userVote: undefined };
-      if (c.userVote === 'like') return { ...c, likes: c.likes - 1, dislikes: (c.dislikes || 0) + 1, userVote: 'dislike' };
-      return { ...c, dislikes: (c.dislikes || 0) + 1, userVote: 'dislike' };
-    }));
+  const handleDislike = (commentId: number) => handleReaction(commentId, false);
+
+  const handleEditActor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingActorIdx === null) return;
+    const actor = cast[editingActorIdx];
+    if (!actor.id || !user?.token) return;
+    setEditActorLoading(true);
+    setEditActorError('');
+    try {
+      await updateCast(actor.id, { name: editActorName, photoUrl: editActorPhoto }, user.token);
+      setCast(prev => prev.map((a, i) => i === editingActorIdx ? { ...a, name: editActorName, photoUrl: editActorPhoto || undefined } : a));
+      setEditingActorIdx(null);
+    } catch (err) {
+      setEditActorError(err instanceof Error ? err.message : 'Ошибка');
+    } finally {
+      setEditActorLoading(false);
+    }
+  };
+
+  const handleDeleteActor = async (idx: number) => {
+    const actor = cast[idx];
+    if (!actor.id || !user?.token) return;
+    try {
+      await deleteCast(actor.id, user.token);
+      setCast(prev => prev.filter((_, i) => i !== idx));
+      if (editingActorIdx === idx) setEditingActorIdx(null);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleUpdateMovie = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user?.token) return;
+    setEditLoading(true);
+    setEditError('');
+    try {
+      const tagIds = editTagIds.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
+      await updateMovie(movie.id, { title: editTitle, description: editDescription, tagIds }, user.token);
+      onUpdated?.({ title: editTitle, description: editDescription });
+      setShowEditForm(false);
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : 'Ошибка');
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const handleDeleteMovie = async () => {
+    if (!user?.token || !window.confirm('Удалить фильм?')) return;
+    setDeleteLoading(true);
+    try {
+      await deleteMovie(movie.id, user.token);
+      onDeleted?.();
+      onClose();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const handleUploadPoster = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user?.token) return;
+    setPosterUploading(true);
+    try {
+      await uploadPoster(movie.id, file, user.token);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setPosterUploading(false);
+    }
   };
 
   return (
@@ -271,18 +417,78 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onC
           <div className="absolute top-4 left-4 bg-background/80 backdrop-blur-md px-3 py-1.5 rounded-xl text-sm font-bold text-honey flex items-center gap-1 shadow-md border border-honey/20">
             <span>★</span> {movie.rating.toFixed(1)}
           </div>
+          {canUpdateMovies && (
+            <label className="absolute bottom-3 right-3 cursor-pointer bg-background/70 hover:bg-background/90 text-white text-xs px-3 py-1.5 rounded-xl border border-gray-600/50 backdrop-blur-md transition-colors flex items-center gap-1.5">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+              </svg>
+              {posterUploading ? 'Загрузка...' : 'Постер'}
+              <input type="file" accept="image/*" className="sr-only" onChange={handleUploadPoster} />
+            </label>
+          )}
         </div>
 
         {/* Details */}
         <div className="p-6 md:p-8 flex-1 flex flex-col gap-6">
 
           <div>
-            <h2 className="text-3xl font-bold text-white mb-2 leading-tight">{movie.title}</h2>
-            <div className="flex flex-wrap items-center text-gray-400 text-sm gap-2">
-              <span className="font-medium text-accent">{movie.releaseYear}</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-gray-600" />
-              <span>{movie.tags.join(', ')}</span>
-            </div>
+            {showEditForm ? (
+              <form onSubmit={handleUpdateMovie} className="flex flex-col gap-3">
+                <input
+                  value={editTitle}
+                  onChange={e => setEditTitle(e.target.value)}
+                  required
+                  className="bg-background/60 border border-gray-700/50 rounded-xl px-4 py-2 text-white text-xl font-bold outline-none focus:border-accent/50"
+                />
+                <textarea
+                  value={editDescription}
+                  onChange={e => setEditDescription(e.target.value)}
+                  rows={3}
+                  className="bg-background/60 border border-gray-700/50 rounded-xl px-4 py-2 text-sm text-white outline-none focus:border-accent/50 resize-none"
+                  placeholder="Описание"
+                />
+                <input
+                  value={editTagIds}
+                  onChange={e => setEditTagIds(e.target.value)}
+                  className="bg-background/60 border border-gray-700/50 rounded-xl px-4 py-2 text-sm text-white outline-none focus:border-accent/50"
+                  placeholder="ID тегов через запятую"
+                />
+                {editError && <p className="text-red-400 text-xs">{editError}</p>}
+                <div className="flex gap-2">
+                  <button type="submit" disabled={editLoading} className="bg-accent text-[#181A1C] font-bold text-sm px-4 py-1.5 rounded-lg hover:opacity-90 disabled:opacity-50">
+                    {editLoading ? 'Сохраняем...' : 'Сохранить'}
+                  </button>
+                  <button type="button" onClick={() => setShowEditForm(false)} className="text-sm text-gray-400 hover:text-white px-4 py-1.5 border border-gray-700/50 rounded-lg">
+                    Отмена
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <>
+                <div className="flex items-start justify-between gap-2">
+                  <h2 className="text-3xl font-bold text-white mb-2 leading-tight">{movie.title}</h2>
+                  {canUpdateMovies && (
+                    <div className="flex gap-2 shrink-0 mt-1">
+                      <button onClick={() => setShowEditForm(true)} className="text-gray-400 hover:text-accent transition-colors" title="Редактировать">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                      <button onClick={handleDeleteMovie} disabled={deleteLoading} className="text-gray-400 hover:text-red-400 transition-colors" title="Удалить фильм">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center text-gray-400 text-sm gap-2">
+                  <span className="font-medium text-accent">{movie.releaseYear}</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-gray-600" />
+                  <span>{movie.tags.join(', ')}</span>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Playlists */}
@@ -342,7 +548,24 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onC
             {!user ? (
               <p className="text-gray-500 text-sm">Войдите, чтобы поставить оценку</p>
             ) : ratingSuccess ? (
-              <p className="text-accent text-sm font-medium">Оценка отправлена!</p>
+              <div className="flex flex-col gap-2">
+                <p className="text-accent text-sm font-medium">Оценка отправлена!</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setRatingSuccess(false)}
+                    className="text-xs text-gray-400 hover:text-white border border-gray-700/50 px-3 py-1.5 rounded-lg transition-colors"
+                  >
+                    Изменить
+                  </button>
+                  <button
+                    onClick={handleDeleteRating}
+                    disabled={ratingLoading}
+                    className="text-xs text-red-400 hover:text-red-300 border border-red-900/50 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {ratingLoading ? '...' : 'Удалить оценку'}
+                  </button>
+                </div>
+              </div>
             ) : (
               <div className="flex flex-col gap-2">
                 {CRITERIA.map(({ key, label }) => (
@@ -364,7 +587,7 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onC
                   disabled={ratingLoading}
                   className="mt-2 self-start bg-accent hover:opacity-90 disabled:opacity-50 text-[#181A1C] font-bold text-sm px-5 py-2 rounded-xl transition-all"
                 >
-                  {ratingLoading ? 'Отправляем...' : 'Отправить оценку'}
+                  {ratingLoading ? 'Отправляем...' : rateId ? 'Обновить оценку' : 'Отправить оценку'}
                 </button>
               </div>
             )}
@@ -430,18 +653,71 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onC
               <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-600">
                 {cast.map((actor, idx) => (
                   <div key={idx} className="flex flex-col items-center gap-2 min-w-[80px]">
-                    <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-700 border-2 border-gray-600/50">
-                      {actor.photoUrl ? (
-                        <img src={actor.photoUrl} alt={actor.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-400">
-                          <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-                          </svg>
+                    {editingActorIdx === idx ? (
+                      <form onSubmit={handleEditActor} className="flex flex-col gap-1.5 min-w-[140px] bg-background/40 p-2 rounded-xl border border-gray-700/40">
+                        <input
+                          value={editActorName}
+                          onChange={e => setEditActorName(e.target.value)}
+                          required
+                          placeholder="Имя"
+                          className="bg-transparent border border-gray-700/50 rounded px-2 py-1 text-xs text-white outline-none focus:border-accent/50"
+                        />
+                        <input
+                          value={editActorPhoto}
+                          onChange={e => setEditActorPhoto(e.target.value)}
+                          placeholder="URL фото"
+                          className="bg-transparent border border-gray-700/50 rounded px-2 py-1 text-xs text-white outline-none focus:border-accent/50"
+                        />
+                        {editActorError && <p className="text-red-400 text-xs">{editActorError}</p>}
+                        <div className="flex gap-1 justify-end">
+                          <button type="button" onClick={() => setEditingActorIdx(null)} className="text-xs text-gray-400 hover:text-white px-2 py-1">✕</button>
+                          <button type="submit" disabled={editActorLoading} className="text-xs bg-accent text-[#181A1C] font-bold px-2 py-1 rounded disabled:opacity-50">
+                            {editActorLoading ? '...' : '✓'}
+                          </button>
                         </div>
-                      )}
-                    </div>
-                    <span className="text-xs text-center text-gray-300 line-clamp-2">{actor.name}</span>
+                      </form>
+                    ) : (
+                      <>
+                        <div className="relative w-16 h-16">
+                          <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-700 border-2 border-gray-600/50">
+                            {actor.photoUrl ? (
+                              <img src={actor.photoUrl} alt={actor.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-gray-400">
+                                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                                  <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                                </svg>
+                              </div>
+                            )}
+                          </div>
+                          {canManageCast && actor.id && (
+                            <div className="absolute -top-1 -right-1 flex flex-col gap-0.5">
+                              <button
+                                type="button"
+                                onClick={() => { setEditingActorIdx(idx); setEditActorName(actor.name); setEditActorPhoto(actor.photoUrl ?? ''); setEditActorError(''); }}
+                                className="w-5 h-5 rounded-full bg-background/80 border border-gray-600/50 flex items-center justify-center text-gray-300 hover:text-accent transition-colors"
+                                title="Редактировать"
+                              >
+                                <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteActor(idx)}
+                                className="w-5 h-5 rounded-full bg-background/80 border border-gray-600/50 flex items-center justify-center text-gray-300 hover:text-red-400 transition-colors"
+                                title="Удалить"
+                              >
+                                <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                        <span className="text-xs text-center text-gray-300 line-clamp-2">{actor.name}</span>
+                      </>
+                    )}
                   </div>
                 ))}
               </div>

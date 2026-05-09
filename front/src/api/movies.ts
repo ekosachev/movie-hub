@@ -108,6 +108,84 @@ export async function createMovie(
   }
 }
 
+export async function updateMovie(
+  movieId: number,
+  fields: { title?: string; description?: string; releaseDate?: string; tagIds?: number[] },
+  token: string
+): Promise<void> {
+  const body: Record<string, unknown> = {};
+  if (fields.title !== undefined) body.title = fields.title;
+  if (fields.description !== undefined) body.description = fields.description;
+  if (fields.releaseDate !== undefined) body.release_date = fields.releaseDate;
+  if (fields.tagIds !== undefined) body.tag_ids = fields.tagIds;
+
+  const res = await fetch(`/api/v1/movies/${movieId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify(body),
+  });
+  const json: ApiResponse<unknown> = await res.json();
+  if (!res.ok || !json.success) throw new Error(json.error || 'Не удалось обновить фильм');
+}
+
+export async function deleteMovie(movieId: number, token: string): Promise<void> {
+  const res = await fetch(`/api/v1/movies/${movieId}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+  const json: ApiResponse<null> = await res.json();
+  if (!res.ok || !json.success) throw new Error(json.error || 'Не удалось удалить фильм');
+}
+
+export async function uploadPoster(movieId: number, file: File, token: string): Promise<void> {
+  const formData = new FormData();
+  formData.append('poster', file);
+  const res = await fetch(`/api/v1/movies/${movieId}`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}` },
+    body: formData,
+  });
+  const json: ApiResponse<unknown> = await res.json();
+  if (!res.ok || !json.success) throw new Error(json.error || 'Не удалось загрузить постер');
+}
+
+export interface ReactionResponse {
+  id: number;
+  is_positive: boolean;
+  user_id: number;
+  comment_id: number;
+}
+
+export async function createReaction(commentId: number, isPositive: boolean, token: string): Promise<ReactionResponse> {
+  const res = await fetch('/api/v1/reactions/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify({ comment_id: commentId, is_positive: isPositive }),
+  });
+  const json: ApiResponse<ReactionResponse> = await res.json();
+  if (!res.ok || !json.success) throw new Error(json.error || 'Ошибка');
+  return json.data!;
+}
+
+export async function updateReaction(reactionId: number, isPositive: boolean, token: string): Promise<void> {
+  const res = await fetch(`/api/v1/reactions/${reactionId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify({ is_positive: isPositive }),
+  });
+  const json: ApiResponse<unknown> = await res.json();
+  if (!res.ok || !json.success) throw new Error(json.error || 'Ошибка');
+}
+
+export async function deleteReaction(reactionId: number, token: string): Promise<void> {
+  const res = await fetch(`/api/v1/reactions/${reactionId}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+  const json: ApiResponse<null> = await res.json();
+  if (!res.ok || !json.success) throw new Error(json.error || 'Ошибка');
+}
+
 export async function createTag(name: string, token: string): Promise<{ id: number; name: string }> {
   const res = await fetch('/api/v1/tags/', {
     method: 'POST',
@@ -142,6 +220,34 @@ export async function createCast(
   const json: ApiResponse<{ id: number }> = await res.json();
   if (!res.ok || !json.success) throw new Error(json.error || 'Не удалось создать актёра');
   return json.data!.id;
+}
+
+export async function updateCast(
+  castId: number,
+  fields: { name?: string; biography?: string; photoUrl?: string },
+  token: string
+): Promise<void> {
+  const body: Record<string, string> = {};
+  if (fields.name !== undefined) body.name = fields.name;
+  if (fields.biography !== undefined) body.biography = fields.biography;
+  if (fields.photoUrl !== undefined) body.photo_url = fields.photoUrl;
+
+  const res = await fetch(`/api/v1/casts/${castId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify(body),
+  });
+  const json: ApiResponse<unknown> = await res.json();
+  if (!res.ok || !json.success) throw new Error(json.error || 'Не удалось обновить актёра');
+}
+
+export async function deleteCast(castId: number, token: string): Promise<void> {
+  const res = await fetch(`/api/v1/casts/${castId}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+  const json: ApiResponse<null> = await res.json();
+  if (!res.ok || !json.success) throw new Error(json.error || 'Не удалось удалить актёра');
 }
 
 export async function linkCastToMovie(
@@ -180,4 +286,29 @@ export async function postRate(
     throw new Error(json.error || 'Не удалось отправить оценку');
   }
   return json.data!;
+}
+
+export async function updateRate(
+  rateId: number,
+  plot: number,
+  performance: number,
+  sfx: number,
+  token: string
+): Promise<void> {
+  const res = await fetch(`/api/v1/rates/${rateId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify({ plot, performance, sfx }),
+  });
+  const json: ApiResponse<unknown> = await res.json();
+  if (!res.ok || !json.success) throw new Error(json.error || 'Не удалось обновить оценку');
+}
+
+export async function deleteRate(rateId: number, token: string): Promise<void> {
+  const res = await fetch(`/api/v1/rates/${rateId}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+  const json: ApiResponse<null> = await res.json();
+  if (!res.ok || !json.success) throw new Error(json.error || 'Не удалось удалить оценку');
 }
