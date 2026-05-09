@@ -28,6 +28,12 @@ func NewCollectionHandler(service *services.CollectionService, logger *slog.Logg
 func (h *CollectionHandler) RegisterRoutes(router *gin.RouterGroup) {
 	group := router.Group("/collections")
 	{
+		sysListsGroup := group.Group("/me").Use(middleware.AuthMiddleware())
+		{
+			sysListsGroup.GET("", h.GetSystemLists)
+			sysListsGroup.POST("/:list", h.AddToSystemList)
+			sysListsGroup.DELETE("/:list/:movieId", h.RemoveFromSystemList)
+		}
 		group.GET("/:id", h.GetByID)
 
 		protectedGroup := group.Group("/").Use(middleware.AuthMiddleware(), middleware.PermissionMiddleware("update_collections"))
@@ -283,4 +289,63 @@ func (h *CollectionHandler) RemoveMovie(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, dto.APIResponse{Success: true})
+}
+
+func (h *CollectionHandler) GetSystemLists(c *gin.Context) {
+	userID := int(c.MustGet("userID").(float64))
+	favorites, watched, watchlist, err := h.Service.GetSystemLists(c, uint(userID))
+	if err != nil {
+		h.Logger.Error("Failed to get system lists", slog.Int("user_id", userID), slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Could not get system lists")
+		return
+	}
+	if favorites == nil {
+		favorites = []uint{}
+	}
+	if watched == nil {
+		watched = []uint{}
+	}
+	if watchlist == nil {
+		watchlist = []uint{}
+	}
+
+	resp := dto.SystemListsResponse{
+		Favorites: favorites,
+		Watched:   watched,
+		Watchlist: watchlist,
+	}
+
+	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: resp})
+}
+
+func (h *CollectionHandler) AddToSystemList(c *gin.Context) {
+	listType := c.Param("list")
+	userID := uint(c.MustGet("userID").(float64))
+	var req dto.AddMovieToCollectionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		sendError(c, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	err := h.Service.AddToSystemList(c, userID, listType, req.MovieID)
+	if err != nil {
+		h.Logger.Error("Failed to add movie to system list", slog.String("list", listType), slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Could not add movie to list")
+		return
+	}
+	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: "Movie added to " + listType})
+}
+
+func (h *CollectionHandler) RemoveFromSystemList(c *gin.Context) {
+	listType := c.Param("list")
+	movieID, _ := strconv.Atoi(c.Param("movieId"))
+	userID := uint(c.MustGet("userID").(float64))
+
+	err := h.Service.RemoveFromSystemList(c, userID, listType, uint(movieID))
+	if err != nil {
+		h.Logger.Error("Failed to remove movie from system list", slog.String("list", listType), slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Could not remove movie from list")
+		return
+	}
+	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: "Movie removed from " + listType})
 }
