@@ -74,12 +74,20 @@ export const AdminStatsPage: React.FC = () => {
           <h1 className="text-3xl font-black text-white">Админ-статистика</h1>
           <p className="text-gray-400 text-sm mt-1">MVP на локальных данных (потом подключим API)</p>
         </div>
-        <Link
-          to="/profile"
-          className="bg-background px-4 py-2 rounded-xl border border-gray-700/50 text-gray-300 hover:text-white"
-        >
-          Назад
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            to="/admin/moderation"
+            className="bg-background px-4 py-2 rounded-xl border border-gray-700/50 text-gray-300 hover:text-white"
+          >
+            Модерация
+          </Link>
+          <Link
+            to="/profile"
+            className="bg-background px-4 py-2 rounded-xl border border-gray-700/50 text-gray-300 hover:text-white"
+          >
+            Назад
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

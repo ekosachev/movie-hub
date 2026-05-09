@@ -86,6 +86,8 @@ export const CollectionPage: React.FC = () => {
           <button
             type="button"
             onClick={() => {
+              const ok = window.confirm('Удалить подборку? Это действие нельзя отменить.');
+              if (!ok) return;
               deleteCollection(collection.id);
               navigate('/profile');
             }}
@@ -111,6 +113,8 @@ export const CollectionPage: React.FC = () => {
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
+                    const ok = window.confirm('Убрать фильм из этой подборки?');
+                    if (!ok) return;
                     removeMovieFromCollection(collection.id, movie.id);
                   }}
                   className="absolute top-3 left-3 z-10 bg-black/50 hover:bg-black/70 text-white text-xs font-bold px-2 py-1 rounded-lg border border-white/10 backdrop-blur"

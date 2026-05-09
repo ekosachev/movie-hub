@@ -207,7 +207,11 @@ export const ProfilePage: React.FC = () => {
                       </button>
                       <button
                         type="button"
-                        onClick={() => deleteLocalCollection(col.id)}
+                        onClick={() => {
+                          const ok = window.confirm('Удалить подборку? Это действие нельзя отменить.');
+                          if (!ok) return;
+                          deleteLocalCollection(col.id);
+                        }}
                         className="text-xs bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/20 px-2 py-1 rounded"
                       >
                         Удалить

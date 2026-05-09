@@ -106,14 +106,22 @@ export const AdminModerationPage: React.FC = () => {
                       <>
                         <button
                           type="button"
-                          onClick={() => setItems(prev => setStatus({ items: prev }, c.id, 'approved').items)}
+                          onClick={() => {
+                            const ok = window.confirm('Одобрить комментарий?');
+                            if (!ok) return;
+                            setItems(prev => setStatus({ items: prev }, c.id, 'approved').items);
+                          }}
                           className="bg-accent hover:opacity-90 text-[#181A1C] font-extrabold uppercase tracking-wide px-4 py-2 rounded-xl"
                         >
                           Approve
                         </button>
                         <button
                           type="button"
-                          onClick={() => setItems(prev => setStatus({ items: prev }, c.id, 'rejected').items)}
+                          onClick={() => {
+                            const ok = window.confirm('Отклонить комментарий?');
+                            if (!ok) return;
+                            setItems(prev => setStatus({ items: prev }, c.id, 'rejected').items);
+                          }}
                           className="bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/20 font-bold px-4 py-2 rounded-xl"
                         >
                           Reject
