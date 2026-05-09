@@ -6,6 +6,7 @@ import { MovieDetailsModal } from '../components/MovieDetailsModal';
 import { CreateMovieModal } from '../components/CreateMovieModal';
 import { useAuth } from '../context/AuthContext';
 import { mockMovies } from '../mockData';
+import { searchMovies } from '../api/movieSearch';
 
 interface HomePageProps {
   searchQuery: string;
@@ -17,12 +18,17 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
   const [activeFilters, setActiveFilters] = useState<FilterSettings | null>(null);
   const [selectedMovieId, setSelectedMovieId] = useState<number | null>(null);
   const [showCreateMovie, setShowCreateMovie] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [serverItems, setServerItems] = useState<typeof mockMovies>([]);
+  const [serverCount, setServerCount] = useState<number>(0);
 
   const selectedMovie = mockMovies.find(m => m.id === selectedMovieId);
 
   const pageSize = 16;
   const pageFromUrl = Number(searchParams.get('page') ?? '1');
   const page = Number.isFinite(pageFromUrl) && pageFromUrl > 0 ? pageFromUrl : 1;
+  const offset = (page - 1) * pageSize;
 
   useEffect(() => {
     const tags = (searchParams.get('tags') ?? '')
@@ -110,37 +116,104 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
     }, { replace: true });
   };
 
-  // Каскадная фильтрация
-  const filteredMovies = useMemo(() => mockMovies.filter(movie => {
-    // 1. Проверяем строку поиска
-    const matchesSearch = movie.title.toLowerCase().includes(searchQuery.toLowerCase());
-    if (!matchesSearch) return false;
+  useEffect(() => {
+    // Try server search; fallback to mocks if backend not ready
+    const abort = new AbortController();
+    setLoading(true);
+    setError('');
 
-    // 2. Если нажата кнопка "Применить" в панели фильтров
-    if (activeFilters) {
-      if (activeFilters.tags.length > 0) {
-        const hasTag = movie.tags.some(t => activeFilters.tags.includes(t));
-        if (!hasTag) return false;
+    const minRating =
+      activeFilters && activeFilters.rating !== 'Все'
+        ? Number.parseInt(String(activeFilters.rating).replace(/\D/g, ''), 10) || 0
+        : 0;
+
+    const dateFrom =
+      activeFilters?.yearFrom ? `${String(activeFilters.yearFrom)}-01-01` : undefined;
+    const dateTo =
+      activeFilters?.yearTo ? `${String(activeFilters.yearTo)}-12-31` : undefined;
+
+    // NOTE: we currently only have tag NAMES in UI. Until tag -> id mapping exists,
+    // we cannot send tag_ids to backend. We'll keep tag filtering client-side for now.
+    const limit = pageSize;
+
+    searchMovies({
+      title: searchQuery.trim() || undefined,
+      minRating: minRating > 0 ? minRating : undefined,
+      dateFrom,
+      dateTo,
+      tagIds: [],
+      limit,
+      offset,
+    })
+      .then(({ items, count }) => {
+        if (abort.signal.aborted) return;
+        const mapped = items.map(it => ({
+          id: it.id,
+          title: it.title,
+          releaseYear: Number(it.release_date?.slice(0, 4)) || 0,
+          tags: (it.tags ?? []).map(t => t.name),
+          rating: 0,
+          posterUrl: it.poster_path,
+          description: it.description,
+          cast: [],
+          comments: [],
+        }));
+
+        // Client-side tag name filtering (until backend accepts tag names or we map to ids)
+        const tagFiltered =
+          activeFilters?.tags?.length
+            ? mapped.filter(m => m.tags.some(t => activeFilters.tags.includes(t)))
+            : mapped;
+
+        setServerItems(tagFiltered);
+        setServerCount(count);
+      })
+      .catch(err => {
+        if (abort.signal.aborted) return;
+        setError(err instanceof Error ? err.message : 'Search failed');
+        // fallback to mocks (keep previous behavior)
+        setServerItems([]);
+        setServerCount(0);
+      })
+      .finally(() => {
+        if (abort.signal.aborted) return;
+        setLoading(false);
+      });
+
+    return () => abort.abort();
+  }, [searchQuery, activeFilters, pageSize, offset]);
+
+  const filteredMovies = useMemo(() => {
+    if (serverItems.length > 0 || serverCount > 0 || loading || error) return serverItems;
+
+    // Fallback: mock filtering
+    return mockMovies.filter(movie => {
+      const matchesSearch = movie.title.toLowerCase().includes(searchQuery.toLowerCase());
+      if (!matchesSearch) return false;
+
+      if (activeFilters) {
+        if (activeFilters.tags.length > 0) {
+          const hasTag = movie.tags.some(t => activeFilters.tags.includes(t));
+          if (!hasTag) return false;
+        }
+
+        if (activeFilters.rating !== 'Все') {
+          const minRating = parseInt(activeFilters.rating.replace(/\D/g, '')) || 0;
+          if (movie.rating < minRating) return false;
+        }
+
+        if (activeFilters.yearFrom && movie.releaseYear < Number(activeFilters.yearFrom)) return false;
+        if (activeFilters.yearTo && movie.releaseYear > Number(activeFilters.yearTo)) return false;
       }
-      
-      if (activeFilters.rating !== 'Все') {
-        const minRating = parseInt(activeFilters.rating.replace(/\D/g, '')) || 0;
-        if (movie.rating < minRating) return false;
-      }
 
-      if (activeFilters.yearFrom && movie.releaseYear < Number(activeFilters.yearFrom)) return false;
-      if (activeFilters.yearTo && movie.releaseYear > Number(activeFilters.yearTo)) return false;
-    }
+      return true;
+    });
+  }, [serverItems, serverCount, loading, error, searchQuery, activeFilters]);
 
-    return true;
-  }), [searchQuery, activeFilters]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredMovies.length / pageSize));
+  const totalCount = serverCount || filteredMovies.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const safePage = Math.min(page, totalPages);
-  const pageMovies = useMemo(() => {
-    const start = (safePage - 1) * pageSize;
-    return filteredMovies.slice(start, start + pageSize);
-  }, [filteredMovies, safePage]);
+  const pageMovies = filteredMovies;
 
   const setPage = (nextPage: number) => {
     const clamped = Math.min(Math.max(1, nextPage), totalPages);
@@ -166,7 +239,7 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
               Тренды Года
             </h2>
             <span className="text-sm text-gray-500 font-medium">
-              Найдено: <span className="text-gray-300">{filteredMovies.length}</span>
+              Найдено: <span className="text-gray-300">{totalCount}</span>
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -192,6 +265,16 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
             )}
           </div>
         </div>
+        {error && (
+          <div className="mb-4 bg-red-500/10 border border-red-500/30 text-red-400 text-sm px-4 py-3 rounded-xl">
+            {error} (fallback: local mock data)
+          </div>
+        )}
+
+        {loading && (
+          <div className="mb-4 text-gray-400 text-sm">Загружаем...</div>
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {pageMovies.length > 0 ? (
             pageMovies.map(movie => (
