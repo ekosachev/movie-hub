@@ -49,11 +49,11 @@ func main() {
 	collectionHandler := handlers.NewCollectionHandler(collectionService, logger)
 
 	roleRepo := repositories.NewRoleRepository(db)
-	roleService := services.NewRoleService(roleRepo)
+	roleService := services.NewRoleService(*roleRepo)
 	roleHanlder := handlers.NewRoleHandler(roleService, logger)
 
 	userRepo := repositories.NewUserRepository(db)
-	userService := services.NewUserService(userRepo)
+	userService := services.NewUserService(*userRepo)
 	userHandler := handlers.NewUserHandler(userService, roleService, logger)
 
 	commentRepo := repositories.NewCommentRepository(db)
