@@ -21,3 +21,12 @@ type RateResponse struct {
 	UserID      int  `json:"user_id"`
 	MovieID     int  `json:"movie_id"`
 }
+
+type AverageRatingResponse struct {
+	MovieID            uint    `json:"movie_id"`
+	AveragePlot        float64 `json:"average_plot"`
+	AveragePerformance float64 `json:"average_performance"`
+	AverageSfx         float64 `json:"average_sfx"`
+	OverallAverage     float64 `json:"overall_average"`
+	TotalVotes         int64   `json:"total_votes"`
+}

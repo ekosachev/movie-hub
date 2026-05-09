@@ -1,6 +1,8 @@
 package services
 
 import (
+	"context"
+
 	"github.com/ekosachev/movie-hub/internal/dto"
 	"github.com/ekosachev/movie-hub/internal/models"
 	"github.com/ekosachev/movie-hub/internal/repositories"
@@ -20,4 +22,8 @@ func NewRateService(repo *repositories.RateRepository) *RateService {
 
 func (s *RateService) GetByMovieID(movieID uint) ([]dto.RateResponse, error) {
 	return s.Repo.GetByMovieID(movieID)
+}
+
+func (s *RateService) GetAverageRating(ctx context.Context, movieID uint) (*dto.AverageRatingResponse, error) {
+	return s.Repo.GetAverageByMovieID(ctx, movieID)
 }

@@ -58,3 +58,38 @@ func (r *RateRepository) GetByMovieID(movieID uint) ([]dto.RateResponse, error) 
 
 	return results, err
 }
+
+func (r *RateRepository) GetAverageByMovieID(ctx context.Context, movieID uint) (*dto.AverageRatingResponse, error) {
+	var result struct {
+		AvgPlot float64
+		AvgPerf float64
+		AvgSfx  float64
+		Count   int64
+	}
+	err := r.db.WithContext(ctx).
+		Model(&models.Rate{}).
+		Where("movie_id = ?", movieID).
+		Select(`
+			COALESCE(AVG(plot), 0) as avg_plot, 
+			COALESCE(AVG(performance), 0) as avg_perf, 
+			COALESCE(AVG(sfx), 0) as avg_sfx, 
+			COUNT(id) as count
+		`).
+		Scan(&result).Error
+	if err != nil {
+		return nil, err
+	}
+	overall := 0.0
+	if result.Count > 0 {
+		overall = (result.AvgPlot + result.AvgPerf + result.AvgSfx) / 3.0
+	}
+
+	return &dto.AverageRatingResponse{
+		MovieID:            movieID,
+		AveragePlot:        result.AvgPlot,
+		AveragePerformance: result.AvgPerf,
+		AverageSfx:         result.AvgSfx,
+		OverallAverage:     overall,
+		TotalVotes:         result.Count,
+	}, nil
+}
