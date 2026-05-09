@@ -122,12 +122,10 @@ func (h *MovieHanlder) GetByID(c *gin.Context) {
 		sendError(c, http.StatusBadRequest, "Invalid movie ID")
 		return
 	}
-
 	movie, err := h.Service.GetByID(c, uint(id))
-
 	if err != nil {
-		h.Logger.Error("Failed to movie role by id", slog.Int("id", id), slog.String("error", err.Error()))
-		sendError(c, http.StatusInternalServerError, "Could not get movie")
+		h.Logger.Error("Failed to get movie by id", slog.Int("id", id), slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Internal server error")
 		return
 	}
 
@@ -136,26 +134,42 @@ func (h *MovieHanlder) GetByID(c *gin.Context) {
 		sendError(c, http.StatusNotFound, "Movie not found")
 		return
 	}
-
-	tags := make([]dto.TagResponse, len(movie.Tag))
-
-	for i, v := range movie.Tag {
-		tags[i] = dto.TagResponse{
-			ID:   v.ID,
-			Name: v.Name,
-		}
+	var tags []dto.TagResponse
+	for _, t := range movie.Tag {
+		tags = append(tags, dto.TagResponse{
+			ID:   t.ID,
+			Name: t.Name,
+		})
+	}
+	var castResp []dto.MovieActorResponse
+	for _, mc := range movie.MovieCasts {
+		castResp = append(castResp, dto.MovieActorResponse{
+			ID:       mc.Cast.ID,
+			Name:     mc.Cast.Name,
+			PhotoUrl: mc.Cast.PhotoUrl,
+			Role:     mc.Role,
+		})
+	}
+	if tags == nil {
+		tags = []dto.TagResponse{}
+	}
+	if castResp == nil {
+		castResp = []dto.MovieActorResponse{}
 	}
 
 	resp := dto.MovieResponse{
 		ID:          movie.ID,
 		Title:       movie.Title,
 		Description: movie.Description,
-		ReleaseDate: movie.ReleaseDate.Format(time.DateTime),
-		Tags:        tags,
+		ReleaseDate: movie.ReleaseDate.Format("2006-01-02"),
 		PosterPath:  movie.PosterPath,
+		Tags:        tags,
+		Cast:        castResp,
 	}
-
-	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: resp})
+	c.JSON(http.StatusOK, dto.APIResponse{
+		Success: true,
+		Data:    resp,
+	})
 }
 
 func (h *MovieHanlder) Update(c *gin.Context) {
