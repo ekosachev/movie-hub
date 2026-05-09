@@ -222,6 +222,34 @@ export async function createCast(
   return json.data!.id;
 }
 
+export async function updateCast(
+  castId: number,
+  fields: { name?: string; biography?: string; photoUrl?: string },
+  token: string
+): Promise<void> {
+  const body: Record<string, string> = {};
+  if (fields.name !== undefined) body.name = fields.name;
+  if (fields.biography !== undefined) body.biography = fields.biography;
+  if (fields.photoUrl !== undefined) body.photo_url = fields.photoUrl;
+
+  const res = await fetch(`/api/v1/casts/${castId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify(body),
+  });
+  const json: ApiResponse<unknown> = await res.json();
+  if (!res.ok || !json.success) throw new Error(json.error || 'Не удалось обновить актёра');
+}
+
+export async function deleteCast(castId: number, token: string): Promise<void> {
+  const res = await fetch(`/api/v1/casts/${castId}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+  const json: ApiResponse<null> = await res.json();
+  if (!res.ok || !json.success) throw new Error(json.error || 'Не удалось удалить актёра');
+}
+
 export async function linkCastToMovie(
   movieId: number,
   castId: number,

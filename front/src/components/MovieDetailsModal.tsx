@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { postComment, postRate, decodeUserId, fetchComments, fetchRates, deleteComment, createCast, linkCastToMovie, updateMovie, deleteMovie, uploadPoster, createReaction, updateReaction, deleteReaction } from '../api/movies';
+import { postComment, postRate, decodeUserId, fetchComments, fetchRates, deleteComment, createCast, linkCastToMovie, updateMovie, deleteMovie, uploadPoster, createReaction, updateReaction, deleteReaction, updateCast, deleteCast } from '../api/movies';
 import { usePlaylists } from '../playlists/usePlaylists';
 
 interface Actor {
+  id?: number;
   name: string;
   photoUrl?: string;
 }
@@ -127,6 +128,11 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onC
   const [newActorPhoto, setNewActorPhoto] = useState('');
   const [actorLoading, setActorLoading] = useState(false);
   const [actorError, setActorError] = useState('');
+  const [editingActorIdx, setEditingActorIdx] = useState<number | null>(null);
+  const [editActorName, setEditActorName] = useState('');
+  const [editActorPhoto, setEditActorPhoto] = useState('');
+  const [editActorLoading, setEditActorLoading] = useState(false);
+  const [editActorError, setEditActorError] = useState('');
 
   const [ratings, setRatings] = useState<CriteriaRating>({ plot: null, performance: null, sfx: null });
   const [hoveredCriteria, setHoveredCriteria] = useState<Record<string, number | null>>({ plot: null, performance: null, sfx: null });
@@ -269,7 +275,7 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onC
     try {
       const castId = await createCast(newActorName.trim(), '', newActorPhoto.trim(), user.token);
       await linkCastToMovie(movie.id, castId, newActorRole.trim(), user.token);
-      setCast(prev => [...prev, { name: newActorName.trim(), photoUrl: newActorPhoto.trim() || undefined }]);
+      setCast(prev => [...prev, { id: castId, name: newActorName.trim(), photoUrl: newActorPhoto.trim() || undefined }]);
       setNewActorName('');
       setNewActorRole('');
       setNewActorPhoto('');
@@ -282,6 +288,36 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onC
   };
 
   const handleDislike = (commentId: number) => handleReaction(commentId, false);
+
+  const handleEditActor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingActorIdx === null) return;
+    const actor = cast[editingActorIdx];
+    if (!actor.id || !user?.token) return;
+    setEditActorLoading(true);
+    setEditActorError('');
+    try {
+      await updateCast(actor.id, { name: editActorName, photoUrl: editActorPhoto }, user.token);
+      setCast(prev => prev.map((a, i) => i === editingActorIdx ? { ...a, name: editActorName, photoUrl: editActorPhoto || undefined } : a));
+      setEditingActorIdx(null);
+    } catch (err) {
+      setEditActorError(err instanceof Error ? err.message : 'Ошибка');
+    } finally {
+      setEditActorLoading(false);
+    }
+  };
+
+  const handleDeleteActor = async (idx: number) => {
+    const actor = cast[idx];
+    if (!actor.id || !user?.token) return;
+    try {
+      await deleteCast(actor.id, user.token);
+      setCast(prev => prev.filter((_, i) => i !== idx));
+      if (editingActorIdx === idx) setEditingActorIdx(null);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const handleUpdateMovie = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -573,18 +609,71 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onC
               <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-600">
                 {cast.map((actor, idx) => (
                   <div key={idx} className="flex flex-col items-center gap-2 min-w-[80px]">
-                    <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-700 border-2 border-gray-600/50">
-                      {actor.photoUrl ? (
-                        <img src={actor.photoUrl} alt={actor.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-400">
-                          <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-                          </svg>
+                    {editingActorIdx === idx ? (
+                      <form onSubmit={handleEditActor} className="flex flex-col gap-1.5 min-w-[140px] bg-background/40 p-2 rounded-xl border border-gray-700/40">
+                        <input
+                          value={editActorName}
+                          onChange={e => setEditActorName(e.target.value)}
+                          required
+                          placeholder="Имя"
+                          className="bg-transparent border border-gray-700/50 rounded px-2 py-1 text-xs text-white outline-none focus:border-accent/50"
+                        />
+                        <input
+                          value={editActorPhoto}
+                          onChange={e => setEditActorPhoto(e.target.value)}
+                          placeholder="URL фото"
+                          className="bg-transparent border border-gray-700/50 rounded px-2 py-1 text-xs text-white outline-none focus:border-accent/50"
+                        />
+                        {editActorError && <p className="text-red-400 text-xs">{editActorError}</p>}
+                        <div className="flex gap-1 justify-end">
+                          <button type="button" onClick={() => setEditingActorIdx(null)} className="text-xs text-gray-400 hover:text-white px-2 py-1">✕</button>
+                          <button type="submit" disabled={editActorLoading} className="text-xs bg-accent text-[#181A1C] font-bold px-2 py-1 rounded disabled:opacity-50">
+                            {editActorLoading ? '...' : '✓'}
+                          </button>
                         </div>
-                      )}
-                    </div>
-                    <span className="text-xs text-center text-gray-300 line-clamp-2">{actor.name}</span>
+                      </form>
+                    ) : (
+                      <>
+                        <div className="relative w-16 h-16">
+                          <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-700 border-2 border-gray-600/50">
+                            {actor.photoUrl ? (
+                              <img src={actor.photoUrl} alt={actor.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-gray-400">
+                                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                                  <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                                </svg>
+                              </div>
+                            )}
+                          </div>
+                          {canManageCast && actor.id && (
+                            <div className="absolute -top-1 -right-1 flex flex-col gap-0.5">
+                              <button
+                                type="button"
+                                onClick={() => { setEditingActorIdx(idx); setEditActorName(actor.name); setEditActorPhoto(actor.photoUrl ?? ''); setEditActorError(''); }}
+                                className="w-5 h-5 rounded-full bg-background/80 border border-gray-600/50 flex items-center justify-center text-gray-300 hover:text-accent transition-colors"
+                                title="Редактировать"
+                              >
+                                <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteActor(idx)}
+                                className="w-5 h-5 rounded-full bg-background/80 border border-gray-600/50 flex items-center justify-center text-gray-300 hover:text-red-400 transition-colors"
+                                title="Удалить"
+                              >
+                                <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                        <span className="text-xs text-center text-gray-300 line-clamp-2">{actor.name}</span>
+                      </>
+                    )}
                   </div>
                 ))}
               </div>
