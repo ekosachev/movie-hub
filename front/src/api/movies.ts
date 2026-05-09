@@ -149,6 +149,43 @@ export async function uploadPoster(movieId: number, file: File, token: string): 
   if (!res.ok || !json.success) throw new Error(json.error || 'Не удалось загрузить постер');
 }
 
+export interface ReactionResponse {
+  id: number;
+  is_positive: boolean;
+  user_id: number;
+  comment_id: number;
+}
+
+export async function createReaction(commentId: number, isPositive: boolean, token: string): Promise<ReactionResponse> {
+  const res = await fetch('/api/v1/reactions/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify({ comment_id: commentId, is_positive: isPositive }),
+  });
+  const json: ApiResponse<ReactionResponse> = await res.json();
+  if (!res.ok || !json.success) throw new Error(json.error || 'Ошибка');
+  return json.data!;
+}
+
+export async function updateReaction(reactionId: number, isPositive: boolean, token: string): Promise<void> {
+  const res = await fetch(`/api/v1/reactions/${reactionId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify({ is_positive: isPositive }),
+  });
+  const json: ApiResponse<unknown> = await res.json();
+  if (!res.ok || !json.success) throw new Error(json.error || 'Ошибка');
+}
+
+export async function deleteReaction(reactionId: number, token: string): Promise<void> {
+  const res = await fetch(`/api/v1/reactions/${reactionId}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+  const json: ApiResponse<null> = await res.json();
+  if (!res.ok || !json.success) throw new Error(json.error || 'Ошибка');
+}
+
 export async function createTag(name: string, token: string): Promise<{ id: number; name: string }> {
   const res = await fetch('/api/v1/tags/', {
     method: 'POST',

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { postComment, postRate, decodeUserId, fetchComments, fetchRates, deleteComment, createCast, linkCastToMovie, updateMovie, deleteMovie, uploadPoster } from '../api/movies';
+import { postComment, postRate, decodeUserId, fetchComments, fetchRates, deleteComment, createCast, linkCastToMovie, updateMovie, deleteMovie, uploadPoster, createReaction, updateReaction, deleteReaction } from '../api/movies';
 import { usePlaylists } from '../playlists/usePlaylists';
 
 interface Actor {
@@ -113,6 +113,8 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onC
     removeMovieFromCollection,
   } = usePlaylists();
 
+  const [userReactions, setUserReactions] = useState<Record<number, { id: number; isPositive: boolean }>>({});
+
   const [comments, setComments] = useState<Comment[]>(movie.comments || []);
   const [newCommentText, setNewCommentText] = useState('');
   const [commentLoading, setCommentLoading] = useState(false);
@@ -204,14 +206,50 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onC
     }
   };
 
-  const handleLike = (commentId: number) => {
-    setComments(comments.map(c => {
-      if (c.id !== commentId) return c;
-      if (c.userVote === 'like') return { ...c, likes: c.likes - 1, userVote: undefined };
-      if (c.userVote === 'dislike') return { ...c, likes: c.likes + 1, dislikes: (c.dislikes || 0) - 1, userVote: 'like' };
-      return { ...c, likes: c.likes + 1, userVote: 'like' };
-    }));
+  const handleReaction = async (commentId: number, isPositive: boolean) => {
+    if (!user?.token) return;
+    const existing = userReactions[commentId];
+    const voteKey = isPositive ? 'like' : 'dislike';
+    const otherKey = isPositive ? 'dislike' : 'like';
+
+    try {
+      if (existing) {
+        if (existing.isPositive === isPositive) {
+          await deleteReaction(existing.id, user.token);
+          setUserReactions(prev => { const next = { ...prev }; delete next[commentId]; return next; });
+          setComments(prev => prev.map(c => c.id !== commentId ? c : {
+            ...c,
+            likes: isPositive ? c.likes - 1 : c.likes,
+            dislikes: !isPositive ? (c.dislikes || 0) - 1 : c.dislikes,
+            userVote: undefined,
+          }));
+        } else {
+          await updateReaction(existing.id, isPositive, user.token);
+          setUserReactions(prev => ({ ...prev, [commentId]: { id: existing.id, isPositive } }));
+          setComments(prev => prev.map(c => c.id !== commentId ? c : {
+            ...c,
+            likes: isPositive ? c.likes + 1 : c.likes - 1,
+            dislikes: !isPositive ? (c.dislikes || 0) + 1 : (c.dislikes || 0) - 1,
+            userVote: voteKey,
+          }));
+        }
+      } else {
+        const reaction = await createReaction(commentId, isPositive, user.token);
+        setUserReactions(prev => ({ ...prev, [commentId]: { id: reaction.id, isPositive } }));
+        setComments(prev => prev.map(c => c.id !== commentId ? c : {
+          ...c,
+          likes: isPositive ? c.likes + 1 : c.likes,
+          dislikes: !isPositive ? (c.dislikes || 0) + 1 : c.dislikes,
+          userVote: voteKey,
+        }));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+    void otherKey;
   };
+
+  const handleLike = (commentId: number) => handleReaction(commentId, true);
 
   const handleDeleteComment = async (commentId: number) => {
     if (!user?.token) return;
@@ -243,14 +281,7 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onC
     }
   };
 
-  const handleDislike = (commentId: number) => {
-    setComments(comments.map(c => {
-      if (c.id !== commentId) return c;
-      if (c.userVote === 'dislike') return { ...c, dislikes: (c.dislikes || 0) - 1, userVote: undefined };
-      if (c.userVote === 'like') return { ...c, likes: c.likes - 1, dislikes: (c.dislikes || 0) + 1, userVote: 'dislike' };
-      return { ...c, dislikes: (c.dislikes || 0) + 1, userVote: 'dislike' };
-    }));
-  };
+  const handleDislike = (commentId: number) => handleReaction(commentId, false);
 
   const handleUpdateMovie = async (e: React.FormEvent) => {
     e.preventDefault();
