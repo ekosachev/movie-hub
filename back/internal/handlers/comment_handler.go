@@ -39,6 +39,12 @@ func (h *CommentHandler) RegisterRoutes(router *gin.RouterGroup) {
 			protectedGroup.DELETE("/:id", h.Delete)
 		}
 	}
+	adminComments := router.Group("/admin/comments").
+		Use(middleware.AuthMiddleware(), middleware.PermissionMiddleware("moderate_comments"))
+	{
+		adminComments.GET("/latest", h.GetLatestAdmin)
+		adminComments.PATCH("/:id/status", h.ChangeStatus)
+	}
 }
 
 func (h *CommentHandler) Create(c *gin.Context) {
@@ -226,4 +232,51 @@ func (h *CommentHandler) Delete(c *gin.Context) {
 	}
 	h.Logger.Info("Comment deleted", slog.Int("comment_id", id))
 	c.JSON(http.StatusOK, dto.APIResponse{Success: true})
+}
+
+func (h *CommentHandler) GetLatestAdmin(c *gin.Context) {
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+
+	comments, count, err := h.Service.GetLatestForAdmin(c.Request.Context(), limit, offset)
+	if err != nil {
+		h.Logger.Error("Failed to fetch latest comments", slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Could not fetch comments")
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.APIResponse{
+		Success: true,
+		Data: dto.PaginatedResponse{
+			Count:  uint(count),
+			Offset: uint(offset),
+			Items:  comments,
+		},
+	})
+}
+
+func (h *CommentHandler) ChangeStatus(c *gin.Context) {
+	idParam := c.Param("id")
+	id, err := strconv.Atoi(idParam)
+	if err != nil || id <= 0 {
+		sendError(c, http.StatusBadRequest, "Invalid comment ID")
+		return
+	}
+
+	var req dto.UpdateCommentStatusRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		sendError(c, http.StatusBadRequest, "Invalid status. Must be pending, approved, or rejected")
+		return
+	}
+
+	if err := h.Service.UpdateStatus(c.Request.Context(), uint(id), req.Status); err != nil {
+		h.Logger.Error("Failed to update comment status", slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Could not update status")
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.APIResponse{
+		Success: true,
+		Data:    "Status updated successfully",
+	})
 }

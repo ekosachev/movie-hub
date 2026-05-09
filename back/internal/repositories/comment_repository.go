@@ -47,7 +47,7 @@ func (r *CommentRepository) Delete(ctx context.Context, filter *models.Comment) 
 func (r *CommentRepository) GetByMovieID(movieID uint) ([]dto.CommentResponse, error) {
 	var comments []models.Comment
 	err := r.db.Preload("User").Preload("Reactions").
-		Where("movie_id = ?", movieID).
+		Where("movie_id = ?", movieID).Where("status = ?", "approved").
 		Find(&comments).Error
 
 	if err != nil {
@@ -78,4 +78,25 @@ func (r *CommentRepository) GetByMovieID(movieID uint) ([]dto.CommentResponse, e
 	}
 
 	return results, nil
+}
+
+func (r *CommentRepository) GetLatestForAdmin(ctx context.Context, limit, offset int) ([]models.Comment, int64, error) {
+	var comments []models.Comment
+	var count int64
+	if err := r.db.WithContext(ctx).Model(&models.Comment{}).Count(&count).Error; err != nil {
+		return nil, 0, err
+	}
+	err := r.db.WithContext(ctx).
+		Order("created_at DESC").
+		Limit(limit).
+		Offset(offset).
+		Find(&comments).Error
+
+	return comments, count, err
+}
+func (r *CommentRepository) UpdateStatus(ctx context.Context, id uint, status string) error {
+	return r.db.WithContext(ctx).
+		Model(&models.Comment{}).
+		Where("id = ?", id).
+		Update("status", status).Error
 }
