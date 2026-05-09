@@ -108,6 +108,47 @@ export async function createMovie(
   }
 }
 
+export async function updateMovie(
+  movieId: number,
+  fields: { title?: string; description?: string; releaseDate?: string; tagIds?: number[] },
+  token: string
+): Promise<void> {
+  const body: Record<string, unknown> = {};
+  if (fields.title !== undefined) body.title = fields.title;
+  if (fields.description !== undefined) body.description = fields.description;
+  if (fields.releaseDate !== undefined) body.release_date = fields.releaseDate;
+  if (fields.tagIds !== undefined) body.tag_ids = fields.tagIds;
+
+  const res = await fetch(`/api/v1/movies/${movieId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify(body),
+  });
+  const json: ApiResponse<unknown> = await res.json();
+  if (!res.ok || !json.success) throw new Error(json.error || 'Не удалось обновить фильм');
+}
+
+export async function deleteMovie(movieId: number, token: string): Promise<void> {
+  const res = await fetch(`/api/v1/movies/${movieId}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+  const json: ApiResponse<null> = await res.json();
+  if (!res.ok || !json.success) throw new Error(json.error || 'Не удалось удалить фильм');
+}
+
+export async function uploadPoster(movieId: number, file: File, token: string): Promise<void> {
+  const formData = new FormData();
+  formData.append('poster', file);
+  const res = await fetch(`/api/v1/movies/${movieId}`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}` },
+    body: formData,
+  });
+  const json: ApiResponse<unknown> = await res.json();
+  if (!res.ok || !json.success) throw new Error(json.error || 'Не удалось загрузить постер');
+}
+
 export async function createTag(name: string, token: string): Promise<{ id: number; name: string }> {
   const res = await fetch('/api/v1/tags/', {
     method: 'POST',
