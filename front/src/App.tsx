@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Routes, Route, Outlet, useSearchParams } from 'react-router-dom';
+import soundFile from '../sound.mp3';
 import { HomePage } from './pages/HomePage';
 import { ProfilePage } from './pages/ProfilePage';
 import { CollectionPage } from './pages/CollectionPage';
@@ -28,6 +29,25 @@ const GlobalLayout: React.FC<{
 
 const App: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    let clicks = 0;
+    const audio = new Audio(soundFile);
+
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('button, a, input, textarea, select, [role="button"]')) return;
+      clicks++;
+      if (clicks >= 10) {
+        clicks = 0;
+        audio.currentTime = 0;
+        audio.play();
+      }
+    };
+
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, []);
   const qFromUrl = searchParams.get('q') ?? '';
 
   const [searchDraft, setSearchDraft] = useState(qFromUrl);

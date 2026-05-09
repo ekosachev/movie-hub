@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { postComment, postRate, updateRate, deleteRate, fetchComments, fetchRates, deleteComment, createCast, linkCastToMovie, updateMovie, deleteMovie, uploadPoster, createReaction, updateReaction, deleteReaction, updateCast, deleteCast, CommentReaction } from '../api/movies';
+import { postComment, postRate, updateRate, deleteRate, fetchComments, fetchRates, deleteComment, createCast, linkCastToMovie, updateMovie, deleteMovie, uploadPoster, createReaction, updateReaction, deleteReaction, updateCast, deleteCast } from '../api/movies';
+import type { CommentReaction } from '../api/movies';
 import { usePlaylists } from '../playlists/usePlaylists';
 
 interface Actor {
