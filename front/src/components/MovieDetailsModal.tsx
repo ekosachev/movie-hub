@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { postComment, postRate, decodeUserId, fetchComments, fetchRates, deleteComment, createCast, linkCastToMovie, updateMovie, deleteMovie, uploadPoster, createReaction, updateReaction, deleteReaction, updateCast, deleteCast } from '../api/movies';
+import { postComment, postRate, updateRate, deleteRate, decodeUserId, fetchComments, fetchRates, deleteComment, createCast, linkCastToMovie, updateMovie, deleteMovie, uploadPoster, createReaction, updateReaction, deleteReaction, updateCast, deleteCast } from '../api/movies';
 import { usePlaylists } from '../playlists/usePlaylists';
 
 interface Actor {
@@ -136,6 +136,7 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onC
 
   const [ratings, setRatings] = useState<CriteriaRating>({ plot: null, performance: null, sfx: null });
   const [hoveredCriteria, setHoveredCriteria] = useState<Record<string, number | null>>({ plot: null, performance: null, sfx: null });
+  const [rateId, setRateId] = useState<number | null>(null);
   const [ratingLoading, setRatingLoading] = useState(false);
   const [ratingError, setRatingError] = useState('');
   const [ratingSuccess, setRatingSuccess] = useState(false);
@@ -156,6 +157,7 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onC
       if (userId && data.length > 0) {
         const myRate = data.find(r => r.user_id === userId);
         if (myRate) {
+          setRateId(myRate.id);
           setRatings({ plot: myRate.plot, performance: myRate.performance, sfx: myRate.sfx });
           setRatingSuccess(true);
         }
@@ -203,8 +205,28 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onC
     setRatingLoading(true);
     setRatingError('');
     try {
-      await postRate(movie.id, ratings.plot, ratings.performance, ratings.sfx, userId, user.token);
+      if (rateId) {
+        await updateRate(rateId, ratings.plot, ratings.performance, ratings.sfx, user.token);
+      } else {
+        const result = await postRate(movie.id, ratings.plot, ratings.performance, ratings.sfx, userId, user.token);
+        setRateId(result.id);
+      }
       setRatingSuccess(true);
+    } catch (err) {
+      setRatingError(err instanceof Error ? err.message : 'Ошибка');
+    } finally {
+      setRatingLoading(false);
+    }
+  };
+
+  const handleDeleteRating = async () => {
+    if (!user?.token || !rateId) return;
+    setRatingLoading(true);
+    try {
+      await deleteRate(rateId, user.token);
+      setRateId(null);
+      setRatings({ plot: null, performance: null, sfx: null });
+      setRatingSuccess(false);
     } catch (err) {
       setRatingError(err instanceof Error ? err.message : 'Ошибка');
     } finally {
@@ -521,7 +543,24 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onC
             {!user ? (
               <p className="text-gray-500 text-sm">Войдите, чтобы поставить оценку</p>
             ) : ratingSuccess ? (
-              <p className="text-accent text-sm font-medium">Оценка отправлена!</p>
+              <div className="flex flex-col gap-2">
+                <p className="text-accent text-sm font-medium">Оценка отправлена!</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setRatingSuccess(false)}
+                    className="text-xs text-gray-400 hover:text-white border border-gray-700/50 px-3 py-1.5 rounded-lg transition-colors"
+                  >
+                    Изменить
+                  </button>
+                  <button
+                    onClick={handleDeleteRating}
+                    disabled={ratingLoading}
+                    className="text-xs text-red-400 hover:text-red-300 border border-red-900/50 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {ratingLoading ? '...' : 'Удалить оценку'}
+                  </button>
+                </div>
+              </div>
             ) : (
               <div className="flex flex-col gap-2">
                 {CRITERIA.map(({ key, label }) => (
@@ -543,7 +582,7 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onC
                   disabled={ratingLoading}
                   className="mt-2 self-start bg-accent hover:opacity-90 disabled:opacity-50 text-[#181A1C] font-bold text-sm px-5 py-2 rounded-xl transition-all"
                 >
-                  {ratingLoading ? 'Отправляем...' : 'Отправить оценку'}
+                  {ratingLoading ? 'Отправляем...' : rateId ? 'Обновить оценку' : 'Отправить оценку'}
                 </button>
               </div>
             )}

@@ -287,3 +287,28 @@ export async function postRate(
   }
   return json.data!;
 }
+
+export async function updateRate(
+  rateId: number,
+  plot: number,
+  performance: number,
+  sfx: number,
+  token: string
+): Promise<void> {
+  const res = await fetch(`/api/v1/rates/${rateId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify({ plot, performance, sfx }),
+  });
+  const json: ApiResponse<unknown> = await res.json();
+  if (!res.ok || !json.success) throw new Error(json.error || 'Не удалось обновить оценку');
+}
+
+export async function deleteRate(rateId: number, token: string): Promise<void> {
+  const res = await fetch(`/api/v1/rates/${rateId}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+  const json: ApiResponse<null> = await res.json();
+  if (!res.ok || !json.success) throw new Error(json.error || 'Не удалось удалить оценку');
+}
