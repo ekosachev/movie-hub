@@ -6,6 +6,7 @@ import { CollectionPage } from './pages/CollectionPage';
 import { AuthPage } from './pages/AuthPage';
 import { OnboardingPage } from './pages/OnboardingPage';
 import { AdminStatsPage } from './pages/AdminStatsPage';
+import { AdminModerationPage } from './pages/AdminModerationPage';
 import { Header } from './components/Header';
 import { useDebouncedValue } from './utils/useDebouncedValue';
 
@@ -55,6 +56,7 @@ const App: React.FC = () => {
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/collection/:id" element={<CollectionPage />} />
         <Route path="/admin/stats" element={<AdminStatsPage />} />
+        <Route path="/admin/moderation" element={<AdminModerationPage />} />
       </Route>
     </Routes>
   );
