@@ -7,6 +7,7 @@ import { CreateMovieModal } from '../components/CreateMovieModal';
 import { useAuth } from '../context/AuthContext';
 import { mockMovies } from '../mockData';
 import { searchMovies } from '../api/movieSearch';
+import { fetchTags } from '../api/movies';
 
 interface HomePageProps {
   searchQuery: string;
@@ -22,13 +23,32 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
   const [error, setError] = useState('');
   const [serverItems, setServerItems] = useState<typeof mockMovies>([]);
   const [serverCount, setServerCount] = useState<number>(0);
+  const [tagNameToId, setTagNameToId] = useState<Record<string, number> | null>(null);
 
   const pageSize = 16;
   const pageFromUrl = Number(searchParams.get('page') ?? '1');
   const page = Number.isFinite(pageFromUrl) && pageFromUrl > 0 ? pageFromUrl : 1;
   const offset = (page - 1) * pageSize;
-  const canUseServerTagFiltering = false; // requires tag_ids mapping (needs GET /tags)
-  const shouldUseServer = canUseServerTagFiltering || !(activeFilters?.tags?.length);
+  const canUseServerTagFiltering = Boolean(tagNameToId);
+  const shouldUseServer = !activeFilters?.tags?.length || canUseServerTagFiltering;
+
+  useEffect(() => {
+    let alive = true;
+    fetchTags()
+      .then(tags => {
+        if (!alive) return;
+        if (!tags.length) return;
+        const map: Record<string, number> = {};
+        for (const t of tags) map[t.name] = t.id;
+        setTagNameToId(map);
+      })
+      .catch(() => {
+        // keep tagNameToId null: tag filtering stays client-side
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   useEffect(() => {
     const tags = (searchParams.get('tags') ?? '')
@@ -140,8 +160,14 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
     const dateTo =
       activeFilters?.yearTo ? `${String(activeFilters.yearTo)}-12-31` : undefined;
 
-    // NOTE: we currently only have tag NAMES in UI. Until tag -> id mapping exists,
-    // we cannot send tag_ids to backend. We'll keep tag filtering client-side for now.
+    // We keep tag names in UI; if we can map name -> id (GET /tags), we do server filtering.
+    const tagIds =
+      canUseServerTagFiltering && activeFilters?.tags?.length
+        ? activeFilters.tags
+            .map(name => tagNameToId?.[name])
+            .filter((v): v is number => typeof v === 'number')
+        : [];
+
     const limit = pageSize;
 
     searchMovies({
@@ -149,7 +175,7 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
       minRating: minRating > 0 ? minRating : undefined,
       dateFrom,
       dateTo,
-      tagIds: [],
+      tagIds,
       limit,
       offset,
       signal: abort.signal,
@@ -168,14 +194,16 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
           comments: [],
         }));
 
-        // Client-side tag name filtering (until backend accepts tag names or we map to ids)
-        const tagFiltered =
-          activeFilters?.tags?.length
-            ? mapped.filter(m => m.tags.some(t => activeFilters.tags.includes(t)))
-            : mapped;
-
-        setServerItems(tagFiltered);
-        setServerCount(count);
+        if (!canUseServerTagFiltering && activeFilters?.tags?.length) {
+          // Client-side tag name filtering (until tag->id mapping exists)
+          const tagFiltered = mapped.filter(m => m.tags.some(t => activeFilters.tags.includes(t)));
+          setServerItems(tagFiltered);
+          // "count" is always TOTAL from backend; "returned" is items.length (or tagFiltered.length here).
+          setServerCount(count);
+        } else {
+          setServerItems(mapped);
+          setServerCount(count);
+        }
       })
       .catch(err => {
         if (abort.signal.aborted) return;

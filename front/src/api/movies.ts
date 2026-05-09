@@ -22,6 +22,13 @@ export interface RateResponse {
   movie_id: number;
 }
 
+export async function fetchTags(): Promise<{ id: number; name: string }[]> {
+  const res = await fetch('/api/v1/tags');
+  const json: ApiResponse<{ id: number; name: string }[]> = await res.json();
+  if (!res.ok || !json.success) return [];
+  return json.data ?? [];
+}
+
 export function decodeUserId(token: string): number | null {
   try {
     const payload = JSON.parse(atob(token.split('.')[1]));
