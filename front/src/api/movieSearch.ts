@@ -29,6 +29,7 @@ export async function searchMovies(params: {
   tagIds?: number[];
   limit: number;
   offset: number;
+  signal?: AbortSignal;
 }): Promise<{ items: MovieSearchItem[]; count: number; offset: number }> {
   const sp = new URLSearchParams();
 
@@ -42,7 +43,7 @@ export async function searchMovies(params: {
   sp.set('limit', String(params.limit));
   sp.set('offset', String(params.offset));
 
-  const res = await fetch(`/api/v1/movies/search?${sp.toString()}`);
+  const res = await fetch(`/api/v1/movies/search?${sp.toString()}`, { signal: params.signal });
   const json: ApiResponse<MovieSearchDataV2 | MovieSearchItem[]> = await res.json();
 
   if (!res.ok || !json.success) {

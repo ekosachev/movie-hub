@@ -27,6 +27,8 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
   const pageFromUrl = Number(searchParams.get('page') ?? '1');
   const page = Number.isFinite(pageFromUrl) && pageFromUrl > 0 ? pageFromUrl : 1;
   const offset = (page - 1) * pageSize;
+  const canUseServerTagFiltering = false; // requires tag_ids mapping (needs GET /tags)
+  const shouldUseServer = canUseServerTagFiltering || !(activeFilters?.tags?.length);
 
   useEffect(() => {
     const tags = (searchParams.get('tags') ?? '')
@@ -115,6 +117,14 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
   };
 
   useEffect(() => {
+    if (!shouldUseServer) {
+      setLoading(false);
+      setError('');
+      setServerItems([]);
+      setServerCount(0);
+      return;
+    }
+
     // Try server search; fallback to mocks if backend not ready
     const abort = new AbortController();
     setLoading(true);
@@ -142,6 +152,7 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
       tagIds: [],
       limit,
       offset,
+      signal: abort.signal,
     })
       .then(({ items, count }) => {
         if (abort.signal.aborted) return;
@@ -179,10 +190,10 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
       });
 
     return () => abort.abort();
-  }, [searchQuery, activeFilters, pageSize, offset]);
+  }, [searchQuery, activeFilters, pageSize, offset, shouldUseServer]);
 
   const filteredMovies = useMemo(() => {
-    if (serverItems.length > 0 || serverCount > 0 || loading || error) return serverItems;
+    if (shouldUseServer && (serverItems.length > 0 || serverCount > 0 || loading || error)) return serverItems;
 
     // Fallback: mock filtering
     return mockMovies.filter(movie => {
@@ -206,14 +217,14 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
 
       return true;
     });
-  }, [serverItems, serverCount, loading, error, searchQuery, activeFilters]);
+  }, [serverItems, serverCount, loading, error, searchQuery, activeFilters, shouldUseServer]);
 
   const selectedMovie = useMemo(() => {
     if (selectedMovieId == null) return undefined;
     return filteredMovies.find(m => m.id === selectedMovieId) ?? mockMovies.find(m => m.id === selectedMovieId);
   }, [filteredMovies, selectedMovieId]);
 
-  const totalCount = serverCount || filteredMovies.length;
+  const totalCount = shouldUseServer ? (serverCount || filteredMovies.length) : filteredMovies.length;
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const safePage = Math.min(page, totalPages);
   const pageMovies = filteredMovies;
