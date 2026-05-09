@@ -21,3 +21,9 @@ type CollectionResponse struct {
 type AddMovieToCollectionRequest struct {
 	MovieID uint `json:"movie_id" binding:"required"`
 }
+
+type SystemListsResponse struct {
+	Favorites []uint `json:"favorites"`
+	Watched   []uint `json:"watched"`
+	Watchlist []uint `json:"watchlist"`
+}

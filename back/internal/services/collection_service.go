@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 
 	"github.com/ekosachev/movie-hub/internal/models"
 	"github.com/ekosachev/movie-hub/internal/repositories"
@@ -33,4 +34,37 @@ func (s *CollectionService) AddMovie(ctx context.Context, collectionID uint, mov
 
 func (s *CollectionService) RemoveMovie(ctx context.Context, collectionID uint, movieID uint) error {
 	return s.repo.RemoveMovie(ctx, collectionID, movieID)
+}
+
+func (s *CollectionService) GetSystemLists(ctx context.Context, userID uint) ([]uint, []uint, []uint, error) {
+	return s.repo.GetSystemLists(ctx, userID)
+}
+
+func (s *CollectionService) AddToSystemList(ctx context.Context, userID uint, listType string, movieID uint) error {
+	listName := s.getListName(listType)
+	if listName == "" {
+		return errors.New("invalid list type")
+	}
+	return s.repo.AddToSystemList(ctx, userID, listName, movieID)
+}
+
+func (s *CollectionService) RemoveFromSystemList(ctx context.Context, userID uint, listType string, movieID uint) error {
+	listName := s.getListName(listType)
+	if listName == "" {
+		return errors.New("invalid list type")
+	}
+	return s.repo.RemoveFromSystemList(ctx, userID, listName, movieID)
+}
+
+func (s *CollectionService) getListName(listType string) string {
+	switch listType {
+	case "favorites":
+		return "Favorites"
+	case "watched":
+		return "Watched"
+	case "watchlist":
+		return "Watchlist"
+	default:
+		return ""
+	}
 }

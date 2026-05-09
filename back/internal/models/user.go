@@ -8,4 +8,7 @@ type User struct {
 	EmailAddress string
 	PasswordHash string
 	RoleID       *uint
+	Favorites    []*Movie `gorm:"many2many:user_favorites;"`
+	Watched      []*Movie `gorm:"many2many:user_watched;"`
+	Watchlist    []*Movie `gorm:"many2many:user_watchlist;"`
 }
