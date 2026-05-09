@@ -37,8 +37,10 @@ func (h *UserHandler) RegisterRoutes(router *gin.RouterGroup) {
 
 		protectedGroup := group.Group("/").Use(middleware.AuthMiddleware())
 		{
+			protectedGroup.GET("", h.GetAll)
 			protectedGroup.PATCH("/:id", h.Update)
 			protectedGroup.PATCH("/:id/set_role", h.SetRole).Use(middleware.PermissionMiddleware("update_roles"))
+			protectedGroup.DELETE("/:id", h.Delete).Use(middleware.PermissionMiddleware("delete_users"))
 			protectedGroup.DELETE("/:id", h.Delete).Use(middleware.PermissionMiddleware("delete_users"))
 		}
 	}
@@ -251,4 +253,27 @@ func (h *UserHandler) SetRole(c *gin.Context) {
 			RoleID:   user.RoleID,
 		},
 	})
+}
+
+func (h *UserHandler) GetAll(c *gin.Context) {
+	users, err := h.Service.GetAll(c)
+
+	if err != nil {
+		sendError(c, http.StatusInternalServerError, "Internal server error")
+		h.Logger.Error("Failed to get users", slog.String("error", err.Error()))
+		return
+	}
+
+	resp := make([]dto.UserResponse, len(users))
+
+	for i, u := range users {
+		resp[i] = dto.UserResponse{
+			ID:       u.ID,
+			Username: u.Username,
+			Email:    u.EmailAddress,
+			RoleID:   u.RoleID,
+		}
+	}
+
+	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: resp})
 }
