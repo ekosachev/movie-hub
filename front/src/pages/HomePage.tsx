@@ -23,8 +23,6 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
   const [serverItems, setServerItems] = useState<typeof mockMovies>([]);
   const [serverCount, setServerCount] = useState<number>(0);
 
-  const selectedMovie = mockMovies.find(m => m.id === selectedMovieId);
-
   const pageSize = 16;
   const pageFromUrl = Number(searchParams.get('page') ?? '1');
   const page = Number.isFinite(pageFromUrl) && pageFromUrl > 0 ? pageFromUrl : 1;
@@ -209,6 +207,11 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
       return true;
     });
   }, [serverItems, serverCount, loading, error, searchQuery, activeFilters]);
+
+  const selectedMovie = useMemo(() => {
+    if (selectedMovieId == null) return undefined;
+    return filteredMovies.find(m => m.id === selectedMovieId) ?? mockMovies.find(m => m.id === selectedMovieId);
+  }, [filteredMovies, selectedMovieId]);
 
   const totalCount = serverCount || filteredMovies.length;
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
