@@ -13,7 +13,11 @@ function Pill({ children }: { children: React.ReactNode }) {
 
 export const AdminModerationPage: React.FC = () => {
   const { user, hasPermission } = useAuth();
-  const isAdmin = hasPermission('remove_comments') || hasPermission('ban_users');
+  const isAdmin =
+    hasPermission('delete_users') ||
+    hasPermission('manage_comments') ||
+    hasPermission('ban_users') ||
+    hasPermission('remove_comments');
 
   const [items, setItems] = useState<ModerationComment[]>(() => loadModeration().items);
   const [active, setActive] = useState<'pending' | 'approved' | 'rejected'>('pending');

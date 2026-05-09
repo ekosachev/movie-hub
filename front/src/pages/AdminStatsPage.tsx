@@ -16,7 +16,11 @@ export const AdminStatsPage: React.FC = () => {
   const { user, hasPermission } = useAuth();
   const { state } = usePlaylists();
 
-  const isAdmin = hasPermission('ban_users') || hasPermission('remove_comments');
+  const isAdmin =
+    hasPermission('delete_users') ||
+    hasPermission('manage_comments') ||
+    hasPermission('ban_users') ||
+    hasPermission('remove_comments');
 
   const stats = useMemo(() => {
     const favorites = state.lists.favorites.length;

@@ -12,6 +12,7 @@ import { Header } from './components/Header';
 import { useDebouncedValue } from './utils/useDebouncedValue';
 import { RequireAuth } from './routing/RequireAuth';
 import { RequirePermission } from './routing/RequirePermission';
+import { RequireAnyPermission } from './routing/RequireAnyPermission';
 
 const GlobalLayout: React.FC<{
   searchQuery: string;
@@ -71,8 +72,22 @@ const App: React.FC = () => {
             </RequireAuth>
           }
         />
-        <Route path="/admin/stats" element={<AdminStatsPage />} />
-        <Route path="/admin/moderation" element={<AdminModerationPage />} />
+        <Route
+          path="/admin/stats"
+          element={
+            <RequireAnyPermission permissions={['delete_users', 'manage_comments']}>
+              <AdminStatsPage />
+            </RequireAnyPermission>
+          }
+        />
+        <Route
+          path="/admin/moderation"
+          element={
+            <RequireAnyPermission permissions={['delete_users', 'manage_comments']}>
+              <AdminModerationPage />
+            </RequireAnyPermission>
+          }
+        />
         <Route
           path="/movies/new"
           element={
