@@ -23,6 +23,7 @@ export interface MovieDetails {
   title: string;
   releaseYear: number;
   tags: string[];
+  tagIds?: number[];
   rating: number;
   posterUrl?: string;
   description?: string;
@@ -33,6 +34,8 @@ export interface MovieDetails {
 interface MovieDetailsModalProps {
   movie: MovieDetails;
   onClose: () => void;
+  onDeleted?: () => void;
+  onUpdated?: (fields: { title?: string; description?: string }) => void;
 }
 
 interface CriteriaRating {
@@ -90,7 +93,7 @@ function StarRow({
   );
 }
 
-export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onClose }) => {
+export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onClose, onDeleted, onUpdated }) => {
   const { user, hasPermission } = useAuth();
   const userId = user?.token ? decodeUserId(user.token) : null;
   const canManageComments = hasPermission('manage_comments');
@@ -100,7 +103,7 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onC
   const [showEditForm, setShowEditForm] = useState(false);
   const [editTitle, setEditTitle] = useState(movie.title);
   const [editDescription, setEditDescription] = useState(movie.description ?? '');
-  const [editTagIds, setEditTagIds] = useState(movie.tags.join(', '));
+  const [editTagIds, setEditTagIds] = useState(movie.tagIds?.join(', ') ?? '');
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -349,6 +352,7 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onC
     try {
       const tagIds = editTagIds.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
       await updateMovie(movie.id, { title: editTitle, description: editDescription, tagIds }, user.token);
+      onUpdated?.({ title: editTitle, description: editDescription });
       setShowEditForm(false);
     } catch (err) {
       setEditError(err instanceof Error ? err.message : 'Ошибка');
@@ -362,6 +366,7 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onC
     setDeleteLoading(true);
     try {
       await deleteMovie(movie.id, user.token);
+      onDeleted?.();
       onClose();
     } catch (err) {
       console.error(err);
