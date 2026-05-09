@@ -19,3 +19,7 @@ type CommentResponse struct {
 	Username        string             `json:"username"`
 	Reactions       []ReactionResponse `json:"reactions"`
 }
+
+type UpdateCommentStatusRequest struct {
+	Status string `json:"status" binding:"required,oneof=pending approved rejected"`
+}
