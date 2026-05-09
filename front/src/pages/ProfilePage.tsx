@@ -6,7 +6,7 @@ import { MovieCard } from '../components/MovieCard';
 import { CreateCollectionModal, NewCollectionData } from '../components/CreateCollectionModal';
 import { usePlaylists } from '../playlists/usePlaylists';
 
-type TabType = 'favorites' | 'watched' | 'watchlist' | 'collections' | 'admin';
+type TabType = 'favorites' | 'watched' | 'watchlist' | 'collections' | 'admin' | 'content';
 
 export const ProfilePage: React.FC = () => {
   const { user, hasPermission } = useAuth();
@@ -31,6 +31,9 @@ export const ProfilePage: React.FC = () => {
       : hasPermission('update_movies')
         ? 'content_manager'
         : 'user';
+
+  const canSeeAdminTab = role === 'admin';
+  const canManageMovies = hasPermission('update_movies');
 
   const lists = state.lists;
   const collections = state.collections;
@@ -150,7 +153,16 @@ export const ProfilePage: React.FC = () => {
           <TabButton active={activeTab === 'watchlist'} onClick={() => setActiveTab('watchlist')}>Буду смотреть</TabButton>
           <TabButton active={activeTab === 'collections'} onClick={() => setActiveTab('collections')}>Мои Подборки</TabButton>
           
-          {role === 'admin' && (
+          {canManageMovies && (
+            <>
+              <div className="w-px bg-gray-700 mx-2 my-2"></div>
+              <TabButton active={activeTab === 'content'} onClick={() => setActiveTab('content')} className="text-blue-400 hover:text-blue-300">
+                ＋ Контент
+              </TabButton>
+            </>
+          )}
+
+          {canSeeAdminTab && (
             <>
               <div className="w-px bg-gray-700 mx-2 my-2"></div>
               <TabButton active={activeTab === 'admin'} onClick={() => setActiveTab('admin')} className="text-honey hover:text-honey/80">
@@ -172,7 +184,8 @@ export const ProfilePage: React.FC = () => {
               {/* Кнопка создания новой подборки */}
               <button 
                 onClick={() => setIsCreateModalOpen(true)}
-                className="w-full bg-card border-2 border-dashed border-gray-600 hover:border-accent hover:bg-accent/5 text-gray-400 hover:text-accent font-bold py-6 rounded-2xl transition-all duration-300 flex flex-col items-center justify-center gap-2 group"
+                disabled={false}
+                className="w-full bg-card border-2 border-dashed border-gray-600 hover:border-accent hover:bg-accent/5 text-gray-400 hover:text-accent disabled:opacity-50 disabled:cursor-not-allowed font-bold py-6 rounded-2xl transition-all duration-300 flex flex-col items-center justify-center gap-2 group"
               >
                 <div className="w-12 h-12 rounded-full bg-gray-800 group-hover:bg-accent/20 flex items-center justify-center transition-colors">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -227,6 +240,27 @@ export const ProfilePage: React.FC = () => {
               )) : (
                 <div className="text-gray-500 text-center py-10">У вас пока нет подборок</div>
               )}
+            </div>
+          )}
+
+          {activeTab === 'content' && (
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-black text-white">Контент-менеджмент</h2>
+                  <p className="text-gray-400 text-sm mt-1">Добавление и обновление фильмов</p>
+                </div>
+                <Link
+                  to="/movies/new"
+                  className="bg-blue-500/15 hover:bg-blue-500/20 border border-blue-500/30 text-blue-300 font-bold px-4 py-2 rounded-xl transition-colors"
+                >
+                  Добавить фильм →
+                </Link>
+              </div>
+
+              <div className="text-gray-500 text-sm bg-background/40 border border-gray-700/40 rounded-xl p-4">
+                Пока это entry-point. В следующем этапе подключим реальные теги и `POST /movies`.
+              </div>
             </div>
           )}
 

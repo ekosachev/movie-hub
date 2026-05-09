@@ -20,6 +20,6 @@ func NewMovieService(repo *repositories.MovieRepository) *MovieService {
 	}
 }
 
-func (s *MovieService) FindWithFilters(ctx context.Context, filter dto.MovieFilterRequest) ([]models.Movie, error) {
+func (s *MovieService) FindWithFilters(ctx context.Context, filter dto.MovieFilterRequest) ([]models.Movie, int64, error) {
 	return s.Repo.FindWithFilters(ctx, filter)
 }

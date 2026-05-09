@@ -33,4 +33,6 @@ type MovieFilterRequest struct {
 	DateFrom  *time.Time `form:"date_from" time_format:"2006-01-02"`
 	DateTo    *time.Time `form:"date_to" time_format:"2006-01-02"`
 	MinRating float64    `form:"min_rating"`
+	Limit     uint       `form:"limit"`
+	Offset    uint       `form:"offset"`
 }
