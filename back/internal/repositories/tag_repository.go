@@ -23,6 +23,10 @@ func (r *TagRepository) Query(ctx context.Context, filter *models.Tag) ([]models
 	return gorm.G[models.Tag](r.db).Where(filter).Find(ctx)
 }
 
+func (r *TagRepository) GetAll(ctx context.Context) ([]models.Tag, error) {
+	return gorm.G[models.Tag](r.db).Find(ctx)
+}
+
 func (r *TagRepository) GetByID(ctx context.Context, id uint) (*models.Tag, error) {
 	tags, err := r.Query(ctx, &models.Tag{Model: gorm.Model{ID: id}})
 
