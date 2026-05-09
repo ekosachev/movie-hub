@@ -61,7 +61,7 @@ func main() {
 	commentHandler := handlers.NewCommentHandler(commentService, userService, logger)
 
 	tagRepo := repositories.NewTagRepository(db)
-	tagService := services.NewTagService(tagRepo)
+	tagService := services.NewTagService(*tagRepo)
 	tagHandler := handlers.NewTagHandler(tagService, logger)
 
 	movieRepo := repositories.NewMovieRepository(db)
