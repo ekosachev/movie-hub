@@ -15,4 +15,9 @@ type CollectionResponse struct {
 	Name     string `json:"name"`
 	IsPublic bool   `json:"is_public"`
 	UserID   int    `json:"user_id"`
+	MovieIDs []uint `json:"movie_ids"`
+}
+
+type AddMovieToCollectionRequest struct {
+	MovieID uint `json:"movie_id" binding:"required"`
 }
