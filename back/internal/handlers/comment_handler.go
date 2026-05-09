@@ -98,6 +98,17 @@ func (h *CommentHandler) GetByID(c *gin.Context) {
 		sendError(c, http.StatusInternalServerError, "Internal server error")
 		return
 	}
+	var reactions []dto.ReactionResponse
+	for _, rx := range comment.Reactions {
+		reactions = append(reactions, dto.ReactionResponse{
+			ID:         rx.ID,
+			UserID:     rx.UserID,
+			IsPositive: rx.IsPositive,
+		})
+	}
+	if reactions == nil {
+		reactions = []dto.ReactionResponse{}
+	}
 
 	resp := dto.CommentResponse{
 		ID:              comment.ID,
@@ -106,6 +117,7 @@ func (h *CommentHandler) GetByID(c *gin.Context) {
 		MovieID:         comment.MovieID,
 		ParentCommentID: comment.ParentCommentID,
 		Username:        user.Username,
+		Reactions:       reactions,
 	}
 	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: resp})
 }
