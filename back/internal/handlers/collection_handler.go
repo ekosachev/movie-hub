@@ -35,8 +35,7 @@ func (h *CollectionHandler) RegisterRoutes(router *gin.RouterGroup) {
 			sysListsGroup.DELETE("/:list/:movieId", h.RemoveFromSystemList)
 		}
 		group.GET("/:id", h.GetByID)
-
-		protectedGroup := group.Group("/").Use(middleware.AuthMiddleware(), middleware.PermissionMiddleware("update_collections"))
+		protectedGroup := group.Group("/").Use(middleware.AuthMiddleware())
 		{
 			protectedGroup.POST("/", h.Create)
 			protectedGroup.PATCH("/:id", h.Update)
@@ -121,57 +120,54 @@ func (h *CollectionHandler) GetByID(c *gin.Context) {
 func (h *CollectionHandler) Update(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
-
 	if err != nil || id <= 0 {
 		sendError(c, http.StatusBadRequest, "Invalid collection ID")
 		return
 	}
-	var req dto.UpdateCollectionRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		h.Logger.Warn("Invalid request payload for collection update", slog.String("error", err.Error()))
-		sendError(c, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	collection, err := h.Service.GetByID(c, uint(id))
-
-	if err != nil {
-		h.Logger.Error("Failed to get collection by id", slog.Int("id", id), slog.String("error", err.Error()))
-		sendError(c, http.StatusInternalServerError, "Internal server error")
-		return
-	}
-	if collection == nil {
-		h.Logger.Warn("Collection not found", slog.Int("id", id))
+	collection, err := h.Service.GetByID(c.Request.Context(), uint(id))
+	if err != nil || collection == nil {
 		sendError(c, http.StatusNotFound, "Collection not found")
 		return
 	}
 	userID := int(c.MustGet("userID").(float64))
-	if collection.UserID != userID {
-		h.Logger.Warn("Access denied: not the owner", slog.Int("user_id", userID), slog.Int("collection_id", id))
-		sendError(c, http.StatusForbidden, "You can only update your own collections")
-		return
-	}
-	if req.Name != nil {
-		collection.Name = *req.Name
-	}
-	if req.IsPublic != nil {
-		collection.IsPublic = *req.IsPublic
+	var hasUpdatePerm bool
+	if permissions, exists := c.Get("userPermissions"); exists {
+		if rawSlice, ok := permissions.([]interface{}); ok {
+			for _, v := range rawSlice {
+				if perm, isString := v.(string); isString && perm == "update_collections" {
+					hasUpdatePerm = true
+					break
+				}
+			}
+		}
 	}
 
-	if _, err := h.Service.Update(c, &models.Collection{Model: gorm.Model{ID: uint(id)}}, *collection); err != nil {
-		h.Logger.Error("Failed to update collection", slog.Int("id", id), slog.String("error", err.Error()))
+	if int(collection.UserID) != userID && !hasUpdatePerm {
+		sendError(c, http.StatusForbidden, "You do not have permission to update this collection")
+		return
+	}
+	var req dto.UpdateCollectionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		sendError(c, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+	filter := &models.Collection{Model: gorm.Model{ID: uint(id)}}
+	updateData := models.Collection{}
+
+	if req.Name != nil {
+		updateData.Name = *req.Name
+	}
+	if req.IsPublic != nil {
+		updateData.IsPublic = *req.IsPublic
+	}
+
+	_, err = h.Service.Update(c.Request.Context(), filter, updateData)
+	if err != nil {
+		h.Logger.Error("Update failed", slog.String("error", err.Error()))
 		sendError(c, http.StatusInternalServerError, "Could not update collection")
 		return
 	}
-
-	resp := dto.CollectionResponse{
-		ID:       collection.ID,
-		Name:     collection.Name,
-		IsPublic: collection.IsPublic,
-		UserID:   collection.UserID,
-	}
-	h.Logger.Info("Collection updated", slog.Uint64("collection_id", uint64(collection.ID)))
-	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: resp})
+	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: "Updated successfully"})
 }
 
 func (h *CollectionHandler) Delete(c *gin.Context) {
@@ -181,31 +177,37 @@ func (h *CollectionHandler) Delete(c *gin.Context) {
 		sendError(c, http.StatusBadRequest, "Invalid collection ID")
 		return
 	}
-	collection, err := h.Service.GetByID(c, uint(id))
-	if err != nil {
-		h.Logger.Error("Failed to get collection by id", slog.Int("id", id), slog.String("error", err.Error()))
-		sendError(c, http.StatusInternalServerError, "Internal server error")
-		return
-	}
-	if collection == nil {
-		h.Logger.Warn("Collection not found", slog.Int("id", id))
+	collection, err := h.Service.GetByID(c.Request.Context(), uint(id))
+	if err != nil || collection == nil {
 		sendError(c, http.StatusNotFound, "Collection not found")
 		return
 	}
-
 	userID := int(c.MustGet("userID").(float64))
-	if collection.UserID != userID {
-		h.Logger.Warn("Access denied: not the owner", slog.Int("user_id", userID), slog.Int("collection_id", id))
-		sendError(c, http.StatusForbidden, "You can only delete your own collections")
+	var hasUpdatePerm bool
+	if permissions, exists := c.Get("userPermissions"); exists {
+		if rawSlice, ok := permissions.([]interface{}); ok {
+			for _, v := range rawSlice {
+				if perm, isString := v.(string); isString && perm == "update_collections" {
+					hasUpdatePerm = true
+					break
+				}
+			}
+		}
+	}
+	if int(collection.UserID) != userID && !hasUpdatePerm {
+		sendError(c, http.StatusForbidden, "Access denied")
 		return
 	}
-	if _, err := h.Service.Delete(c, &models.Collection{Model: gorm.Model{ID: uint(id)}}); err != nil {
-		h.Logger.Error("Failed to delete a collection", slog.Int("id", id), slog.String("error", err.Error()))
-		sendError(c, http.StatusInternalServerError, "Could not delete collection")
+	filter := &models.Collection{Model: gorm.Model{ID: uint(id)}}
+	if _, err := h.Service.Delete(c.Request.Context(), filter); err != nil {
+		h.Logger.Error("Delete failed", slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Could not delete")
 		return
 	}
-	h.Logger.Info("Collection deleted", slog.Int("collection_id", id))
-	c.JSON(http.StatusOK, dto.APIResponse{Success: true})
+	c.JSON(http.StatusOK, dto.APIResponse{
+		Success: true,
+		Data:    "Collection deleted successfully",
+	})
 }
 
 func (h *CollectionHandler) GetMyCollections(c *gin.Context) {

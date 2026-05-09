@@ -6,8 +6,9 @@ type CreateCollectionRequest struct {
 }
 
 type UpdateCollectionRequest struct {
-	Name     *string `json:"name" binding:"omitempty,min=1,max=255"`
-	IsPublic *bool   `json:"is_public" binding:"omitempty"`
+	Name        *string `json:"name" binding:"omitempty,min=1,max=255"`
+	IsPublic    *bool   `json:"is_public" binding:"omitempty"`
+	Description string  `json:"description" binding:"omitempty"`
 }
 
 type CollectionResponse struct {
