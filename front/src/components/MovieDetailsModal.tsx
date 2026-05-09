@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { postComment, postRate, decodeUserId, fetchComments, fetchRates, deleteComment, createCast, linkCastToMovie } from '../api/movies';
+import { usePlaylists } from '../playlists/usePlaylists';
 
 interface Actor {
   name: string;
@@ -93,6 +94,14 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onC
   const userId = user?.token ? decodeUserId(user.token) : null;
   const canManageComments = hasPermission('manage_comments');
   const canManageCast = hasPermission('manage_cast');
+  const {
+    state: playlistsState,
+    isInList,
+    toggleInList,
+    isInCollection,
+    addMovieToCollection,
+    removeMovieFromCollection,
+  } = usePlaylists();
 
   const [comments, setComments] = useState<Comment[]>(movie.comments || []);
   const [newCommentText, setNewCommentText] = useState('');
@@ -274,6 +283,57 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onC
               <span className="w-1.5 h-1.5 rounded-full bg-gray-600" />
               <span>{movie.tags.join(', ')}</span>
             </div>
+          </div>
+
+          {/* Playlists */}
+          <div>
+            <h3 className="text-lg font-semibold text-white mb-3">Мои списки</h3>
+            {!user ? (
+              <p className="text-gray-500 text-sm">Войдите, чтобы добавлять фильмы в списки</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                <ListToggle active={isInList('favorites', movie.id)} onClick={() => toggleInList('favorites', movie.id)}>
+                  Избранное
+                </ListToggle>
+                <ListToggle active={isInList('watched', movie.id)} onClick={() => toggleInList('watched', movie.id)}>
+                  Просмотрено
+                </ListToggle>
+                <ListToggle active={isInList('watchlist', movie.id)} onClick={() => toggleInList('watchlist', movie.id)}>
+                  Хочу посмотреть
+                </ListToggle>
+              </div>
+            )}
+          </div>
+
+          {/* Collections */}
+          <div>
+            <h3 className="text-lg font-semibold text-white mb-3">Подборки</h3>
+            {!user ? (
+              <p className="text-gray-500 text-sm">Войдите, чтобы добавлять фильмы в подборки</p>
+            ) : playlistsState.collections.length === 0 ? (
+              <p className="text-gray-500 text-sm">У вас пока нет подборок</p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {playlistsState.collections.map(col => {
+                  const active = isInCollection(col.id, movie.id);
+                  return (
+                    <button
+                      key={col.id}
+                      type="button"
+                      onClick={() =>
+                        active ? removeMovieFromCollection(col.id, movie.id) : addMovieToCollection(col.id, movie.id)
+                      }
+                      className={`w-full flex items-center justify-between gap-3 px-3 py-2 rounded-xl border transition-colors text-sm font-bold
+                        ${active ? 'bg-accent text-[#181A1C] border-accent' : 'bg-background text-gray-300 border-gray-700 hover:border-accent/40'}
+                      `}
+                    >
+                      <span className="truncate">{col.title}</span>
+                      <span className="text-xs font-black">{active ? '✓' : '+'}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Rating: 3 criteria */}
@@ -472,3 +532,25 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onC
     </div>
   );
 };
+
+function ListToggle({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`px-3 py-2 rounded-xl text-sm font-bold border transition-colors
+        ${active ? 'bg-accent text-[#181A1C] border-accent' : 'bg-background text-gray-300 border-gray-700 hover:border-accent/40'}
+      `}
+    >
+      {children}
+    </button>
+  );
+}

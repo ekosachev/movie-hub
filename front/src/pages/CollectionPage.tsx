@@ -1,47 +1,20 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { mockCustomCollections, mockMovies } from '../mockData';
+import { mockMovies } from '../mockData';
 import { MovieCard } from '../components/MovieCard';
 import { MovieDetailsModal } from '../components/MovieDetailsModal';
-import * as collectionsApi from '../api/collections';
+import { usePlaylists } from '../playlists/usePlaylists';
 
 export const CollectionPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [selectedMovieId, setSelectedMovieId] = useState<number | null>(null);
-  const [serverCollection, setServerCollection] = useState<collectionsApi.Collection | null>(null);
-  const [loading, setLoading] = useState(false);
 
+  const { getCollectionById, removeMovieFromCollection, deleteCollection } = usePlaylists();
   const collectionId = Number(id);
-  const localCollection = mockCustomCollections.find(c => c.id === collectionId);
+  const collection = Number.isFinite(collectionId) ? getCollectionById(collectionId) : null;
 
-  useEffect(() => {
-    if (!Number.isFinite(collectionId)) return;
-    if (localCollection) return;
-
-    setLoading(true);
-    collectionsApi
-      .getCollectionById(collectionId)
-      .then(res => {
-        if (res.success && res.data) setServerCollection(res.data);
-      })
-      .finally(() => setLoading(false));
-  }, [collectionId, localCollection]);
-
-  const title = localCollection?.title ?? serverCollection?.name ?? '';
-  const isPublic = localCollection?.isPublic ?? serverCollection?.is_public ?? false;
-  const description = localCollection?.description ?? '';
-  const movieIds = useMemo(() => localCollection?.movieIds ?? [], [localCollection]);
-
-  if (!localCollection && loading) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center text-center gap-4 py-20 text-gray-400">
-        Загружаем подборку...
-      </div>
-    );
-  }
-
-  if (!localCollection && !serverCollection) {
+  if (!collection) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center text-center gap-4 py-20">
         <h2 className="text-3xl font-bold text-gray-500">Подборка не найдена 🥲</h2>
@@ -56,7 +29,9 @@ export const CollectionPage: React.FC = () => {
   }
 
   // Получаем фильмы, которые находятся в этой подборке
-  const collectionMovies = mockMovies.filter(movie => movieIds.includes(movie.id));
+  const collectionMovies = useMemo(() => {
+    return mockMovies.filter(movie => collection.movieIds.includes(movie.id));
+  }, [collection.movieIds]);
   const selectedMovie = mockMovies.find(m => m.id === selectedMovieId);
 
   return (
@@ -82,7 +57,7 @@ export const CollectionPage: React.FC = () => {
 
         <div className="relative z-10 flex flex-col gap-3">
           <div className="flex items-center gap-3 mb-1">
-            {isPublic ? (
+            {collection.isPublic ? (
               <span className="text-xs bg-accent/20 border border-accent/40 text-accent px-3 py-1 rounded-full font-bold tracking-widest uppercase">
                 Публичная
               </span>
@@ -92,19 +67,34 @@ export const CollectionPage: React.FC = () => {
               </span>
             )}
             <span className="text-sm font-medium text-gray-400">
-              {movieIds.length} фильмов
+              {collection.movieIds.length} фильмов
             </span>
           </div>
           
           <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight">
-            {title}
+            {collection.title}
           </h1>
           
-          {description && (
+          {collection.description && (
             <p className="text-gray-400 text-lg max-w-2xl mt-2 leading-relaxed">
-              {description}
+              {collection.description}
             </p>
           )}
+        </div>
+
+        <div className="relative z-10 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              const ok = window.confirm('Удалить подборку? Это действие нельзя отменить.');
+              if (!ok) return;
+              deleteCollection(collection.id);
+              navigate('/profile');
+            }}
+            className="bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/20 font-bold px-4 py-2 rounded-xl transition-colors"
+          >
+            Удалить подборку
+          </button>
         </div>
       </header>
 
@@ -118,16 +108,30 @@ export const CollectionPage: React.FC = () => {
         {collectionMovies.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {collectionMovies.map(movie => (
-              <MovieCard
-                key={movie.id}
-                id={movie.id}
-                title={movie.title}
-                releaseYear={movie.releaseYear}
-                tags={movie.tags}
-                rating={movie.rating}
-                posterUrl={movie.posterUrl}
-                onClick={setSelectedMovieId}
-              />
+              <div key={movie.id} className="relative">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const ok = window.confirm('Убрать фильм из этой подборки?');
+                    if (!ok) return;
+                    removeMovieFromCollection(collection.id, movie.id);
+                  }}
+                  className="absolute top-3 left-3 z-10 bg-black/50 hover:bg-black/70 text-white text-xs font-bold px-2 py-1 rounded-lg border border-white/10 backdrop-blur"
+                  title="Убрать из подборки"
+                >
+                  Убрать
+                </button>
+                <MovieCard
+                  id={movie.id}
+                  title={movie.title}
+                  releaseYear={movie.releaseYear}
+                  tags={movie.tags}
+                  rating={movie.rating}
+                  posterUrl={movie.posterUrl}
+                  onClick={setSelectedMovieId}
+                />
+              </div>
             ))}
           </div>
         ) : (

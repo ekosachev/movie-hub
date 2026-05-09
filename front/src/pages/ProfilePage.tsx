@@ -1,40 +1,42 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { mockMovies, mockCustomCollections } from '../mockData';
+import { mockMovies } from '../mockData';
 import { MovieCard } from '../components/MovieCard';
 import { CreateCollectionModal, NewCollectionData } from '../components/CreateCollectionModal';
-import { ApiError } from '../api/http';
-import * as collectionsApi from '../api/collections';
+import { usePlaylists } from '../playlists/usePlaylists';
 
 type TabType = 'favorites' | 'watched' | 'watchlist' | 'collections' | 'admin' | 'content';
 
 export const ProfilePage: React.FC = () => {
   const { user, hasPermission } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('favorites');
-  const [collections, setCollections] = useState(mockCustomCollections);
+  const {
+    state,
+    createCollection: createLocalCollection,
+    deleteCollection: deleteLocalCollection,
+    updateCollection: updateLocalCollection,
+  } = usePlaylists();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [createCollectionError, setCreateCollectionError] = useState('');
-  const [isCreatingCollection, setIsCreatingCollection] = useState(false);
+  const [editingCollectionId, setEditingCollectionId] = useState<number | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editIsPublic, setEditIsPublic] = useState(false);
 
   if (!user) return null;
 
-  const role = user.role;
+  const role: 'user' | 'content_manager' | 'admin' =
+    hasPermission('ban_users') || hasPermission('remove_comments')
+      ? 'admin'
+      : hasPermission('update_movies')
+        ? 'content_manager'
+        : 'user';
+
   const canSeeAdminTab = role === 'admin';
   const canManageMovies = hasPermission('update_movies');
-  const canManageCollections = hasPermission('update_collections');
 
-  // Фейковые списки для демонстрации (позже подключим API)
-  const lists = useMemo(() => ({ favorites: [], watched: [], watchlist: [] }), []);
-
-  useEffect(() => {
-    if (activeTab === 'admin' && !canSeeAdminTab) {
-      setActiveTab('favorites');
-    }
-    if (activeTab === 'content' && !canManageMovies) {
-      setActiveTab('favorites');
-    }
-  }, [activeTab, canSeeAdminTab, canManageMovies]);
+  const lists = state.lists;
+  const collections = state.collections;
 
   // Функция для получения объектов фильмов по массиву их ID
   const getMoviesByIds = (ids: number[]) => {
@@ -67,41 +69,34 @@ export const ProfilePage: React.FC = () => {
   };
 
   const handleCreateCollection = (data: NewCollectionData) => {
-    if (!canManageCollections) {
-      setCreateCollectionError('Недостаточно прав для создания подборок (update_collections).');
-      return;
-    }
+    createLocalCollection({
+      title: data.title,
+      description: data.description,
+      isPublic: data.isPublic,
+    });
+    setIsCreateModalOpen(false);
+  };
 
-    setCreateCollectionError('');
-    setIsCreatingCollection(true);
+  const createdAtLabel = useMemo(() => {
+    return new Date().toISOString().slice(0, 10);
+  }, []);
 
-    collectionsApi
-      .createCollection({ name: data.title, is_public: data.isPublic }, user.token)
-      .then(res => {
-        const created = res.data;
-        if (!res.success || !created) throw new Error('Не удалось создать подборку');
+  const startEdit = (col: { id: number; title: string; description: string; isPublic: boolean }) => {
+    setEditingCollectionId(col.id);
+    setEditTitle(col.title);
+    setEditDescription(col.description);
+    setEditIsPublic(col.isPublic);
+  };
 
-        // description пока только локально — бэк хранит только name/is_public
-        const newCollection = {
-          id: created.id,
-          title: created.name,
-          description: data.description,
-          isPublic: created.is_public,
-          movieIds: [],
-          rating: 0,
-        };
-
-        mockCustomCollections.unshift(newCollection);
-        setCollections(prev => [newCollection, ...prev]);
-        setIsCreateModalOpen(false);
-      })
-      .catch((err: unknown) => {
-        if (err instanceof ApiError) setCreateCollectionError(err.message);
-        else setCreateCollectionError(err instanceof Error ? err.message : 'Не удалось создать подборку');
-      })
-      .finally(() => {
-        setIsCreatingCollection(false);
-      });
+  const submitEdit = () => {
+    if (!editingCollectionId) return;
+    if (!editTitle.trim()) return;
+    updateLocalCollection(editingCollectionId, {
+      title: editTitle.trim(),
+      description: editDescription.trim(),
+      isPublic: editIsPublic,
+    });
+    setEditingCollectionId(null);
   };
 
   return (
@@ -189,7 +184,7 @@ export const ProfilePage: React.FC = () => {
               {/* Кнопка создания новой подборки */}
               <button 
                 onClick={() => setIsCreateModalOpen(true)}
-                disabled={!canManageCollections || isCreatingCollection}
+                disabled={false}
                 className="w-full bg-card border-2 border-dashed border-gray-600 hover:border-accent hover:bg-accent/5 text-gray-400 hover:text-accent disabled:opacity-50 disabled:cursor-not-allowed font-bold py-6 rounded-2xl transition-all duration-300 flex flex-col items-center justify-center gap-2 group"
               >
                 <div className="w-12 h-12 rounded-full bg-gray-800 group-hover:bg-accent/20 flex items-center justify-center transition-colors">
@@ -197,35 +192,51 @@ export const ProfilePage: React.FC = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
                 </div>
-                <span>{isCreatingCollection ? 'Создаём...' : 'Создать новую подборку'}</span>
+                <span>Создать новую подборку</span>
               </button>
 
-              {createCollectionError && (
-                <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm px-4 py-3 rounded-xl">
-                  {createCollectionError}
-                </div>
-              )}
-
               {collections.length > 0 ? collections.map(col => (
-                <Link to={`/collection/${col.id}`} key={col.id} className="bg-[#2C2E33] p-5 rounded-2xl border border-transparent hover:border-accent/30 transition-colors flex flex-col gap-3 group block">
-                  <div className="flex justify-between items-start">
+                <div key={col.id} className="bg-[#2C2E33] p-5 rounded-2xl border border-transparent hover:border-accent/30 transition-colors flex flex-col gap-3">
+                  <div className="flex justify-between items-start gap-3">
                     <div>
-                      <h3 className="text-lg font-bold text-white group-hover:text-accent transition-colors">{col.title}</h3>
+                      <Link to={`/collection/${col.id}`} className="block">
+                        <h3 className="text-lg font-bold text-white hover:text-accent transition-colors">{col.title}</h3>
+                      </Link>
                       <p className="text-gray-400 text-sm mt-1">{col.description}</p>
                     </div>
-                    <div className="flex gap-2 items-center">
+                    <div className="flex gap-2 items-center shrink-0">
                       {col.isPublic ? (
                         <span className="text-xs bg-accent/10 text-accent px-2 py-1 rounded">Публичная</span>
                       ) : (
                         <span className="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded">Приватная</span>
                       )}
+
+                      <button
+                        type="button"
+                        onClick={() => startEdit(col)}
+                        className="text-xs bg-gray-700/40 hover:bg-gray-700/60 text-gray-200 px-2 py-1 rounded"
+                      >
+                        Редакт.
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const ok = window.confirm('Удалить подборку? Это действие нельзя отменить.');
+                          if (!ok) return;
+                          deleteLocalCollection(col.id);
+                        }}
+                        className="text-xs bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/20 px-2 py-1 rounded"
+                      >
+                        Удалить
+                      </button>
                     </div>
                   </div>
                   <div className="text-sm text-gray-500 font-medium mt-2 border-t border-gray-700/50 pt-3 flex justify-between items-center">
                     <span>Фильмов в подборке: <span className="text-white">{col.movieIds.length}</span></span>
+                    <span className="text-xs text-gray-600">{createdAtLabel}</span>
                     <span className="text-accent text-xs font-bold uppercase tracking-wider group-hover:translate-x-1 transition-transform">Перейти →</span>
                   </div>
-                </Link>
+                </div>
               )) : (
                 <div className="text-gray-500 text-center py-10">У вас пока нет подборок</div>
               )}
@@ -254,10 +265,24 @@ export const ProfilePage: React.FC = () => {
           )}
 
           {activeTab === 'admin' && (
-            <div className="flex flex-col items-center justify-center h-[400px] text-gray-400 gap-4">
+            <div className="flex flex-col items-center justify-center h-[400px] text-gray-400 gap-4 text-center">
               <svg className="w-16 h-16 text-honey/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
               <h2 className="text-2xl font-bold text-white">Дашборд Статистики</h2>
-              <p>Здесь будут крутые графики и цифры проекта...</p>
+              <p>MVP готов — открой отдельную страницу статистики.</p>
+              <div className="mt-2 flex flex-wrap gap-2 justify-center">
+                <Link
+                  to="/admin/stats"
+                  className="bg-honey/15 hover:bg-honey/20 border border-honey/30 text-honey font-bold px-5 py-2.5 rounded-xl transition-colors"
+                >
+                  Статистика →
+                </Link>
+                <Link
+                  to="/admin/moderation"
+                  className="bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/20 font-bold px-5 py-2.5 rounded-xl transition-colors"
+                >
+                  Модерация →
+                </Link>
+              </div>
             </div>
           )}
         </div>
@@ -269,6 +294,72 @@ export const ProfilePage: React.FC = () => {
           onClose={() => setIsCreateModalOpen(false)}
           onSubmit={handleCreateCollection}
         />
+      )}
+
+      {/* Модалка редактирования подборки */}
+      {editingCollectionId !== null && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setEditingCollectionId(null)} />
+          <div className="relative bg-card w-full max-w-lg rounded-3xl p-8 shadow-2xl border border-gray-700/50">
+            <h2 className="text-2xl font-bold text-white mb-6">Редактировать подборку</h2>
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-bold text-gray-400 uppercase tracking-wider">Название</label>
+                <input
+                  value={editTitle}
+                  onChange={e => setEditTitle(e.target.value)}
+                  className="bg-[#181A1C] border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-bold text-gray-400 uppercase tracking-wider">Описание</label>
+                <textarea
+                  rows={3}
+                  value={editDescription}
+                  onChange={e => setEditDescription(e.target.value)}
+                  className="bg-[#181A1C] border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors resize-none"
+                />
+              </div>
+              <div className="flex items-center justify-between p-4 bg-[#181A1C] rounded-xl border border-gray-700/50">
+                <div>
+                  <p className="font-bold text-white mb-1">Публичная подборка</p>
+                  <p className="text-xs text-gray-500">Другие пользователи смогут видеть её.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditIsPublic(v => !v)}
+                  className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none ${
+                    editIsPublic ? 'bg-accent' : 'bg-gray-600'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                      editIsPublic ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              <div className="flex gap-3 mt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingCollectionId(null)}
+                  className="flex-1 py-3 px-4 bg-gray-800 hover:bg-gray-700 text-white font-bold rounded-xl transition-colors"
+                >
+                  Отмена
+                </button>
+                <button
+                  type="button"
+                  onClick={submitEdit}
+                  disabled={!editTitle.trim()}
+                  className="flex-1 py-3 px-4 bg-accent hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-[#181A1C] font-extrabold uppercase tracking-wider rounded-xl transition-all"
+                >
+                  Сохранить
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
