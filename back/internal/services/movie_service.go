@@ -23,3 +23,22 @@ func NewMovieService(repo *repositories.MovieRepository) *MovieService {
 func (s *MovieService) FindWithFilters(ctx context.Context, filter dto.MovieFilterRequest) ([]models.Movie, int64, error) {
 	return s.Repo.FindWithFilters(ctx, filter)
 }
+
+func (s *MovieService) GetMovieCasts(ctx context.Context, movieID uint) ([]dto.MovieActorResponse, error) {
+	casts, err := s.Repo.GetCastsByMovieID(ctx, movieID)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]dto.MovieActorResponse, 0, len(casts))
+	for _, c := range casts {
+		result = append(result, dto.MovieActorResponse{
+			ID:       c.Cast.ID,
+			Name:     c.Cast.Name,
+			PhotoUrl: c.Cast.PhotoUrl,
+			Role:     c.Role,
+		})
+	}
+
+	return result, nil
+}

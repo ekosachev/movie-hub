@@ -48,6 +48,7 @@ func (h *MovieHanlder) RegisterRoutes(router *gin.RouterGroup) {
 		group.GET("/:id/rates", h.GetAllRates)
 		group.GET("/search", h.FindWithFilters)
 		group.GET("/:id/average-rating", h.GetAverageRating)
+		group.GET("/:id/casts", h.GetCasts)
 
 		protectedGroup := group.Group("/").Use(middleware.AuthMiddleware()).Use(middleware.PermissionMiddleware("update_movies"))
 		{
@@ -430,5 +431,24 @@ func (h *MovieHanlder) GetAverageRating(c *gin.Context) {
 	c.JSON(http.StatusOK, dto.APIResponse{
 		Success: true,
 		Data:    result,
+	})
+}
+
+func (h *MovieHanlder) GetCasts(c *gin.Context) {
+	idParam := c.Param("id")
+	id, err := strconv.Atoi(idParam)
+	if err != nil || id <= 0 {
+		sendError(c, http.StatusBadRequest, "Invalid movie ID")
+		return
+	}
+	casts, err := h.Service.GetMovieCasts(c.Request.Context(), uint(id))
+	if err != nil {
+		h.Logger.Error("Failed to fetch movie casts", slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Internal server error")
+		return
+	}
+	c.JSON(http.StatusOK, dto.APIResponse{
+		Success: true,
+		Data:    casts,
 	})
 }
