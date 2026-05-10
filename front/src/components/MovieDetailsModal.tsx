@@ -185,7 +185,7 @@ setComments(mapped);
       }
     });
     fetchMovieCasts(movie.id).then(data => {
-      setCast(data.map(c => ({ id: c.id, name: c.name, photoUrl: c.photo_url || undefined })));
+      setCast(data.filter(c => c.id && c.name).map(c => ({ id: c.id, name: c.name, photoUrl: c.photo_url || undefined })));
     });
   }, [movie.id, userId]);
 

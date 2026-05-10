@@ -58,13 +58,36 @@ export function usePlaylists() {
   useEffect(() => {
     if (!user?.token) return;
     let alive = true;
+    const token = user.token;
 
     collectionsApi
-      .fetchMyCollections(user.token)
-      .then(rows => {
+      .fetchMyCollections(token)
+      .then(async rows => {
+        if (!alive) return;
+        const backendIds = new Set(rows.map(r => r.id));
+
+        // Snapshot local state to find collections that only exist locally
+        const snapshot = loadPlaylists(userKey);
+        const localsOnly = snapshot.collections.filter(c => !backendIds.has(c.id));
+
+        // Sync local-only collections to backend and collect id remapping
+        const idMap = new Map<number, number>(); // localId → backendId
+        await Promise.allSettled(
+          localsOnly.map(async col => {
+            try {
+              const json = await collectionsApi.createCollection(
+                { name: col.title, is_public: col.isPublic },
+                token
+              );
+              if (json.success && json.data) idMap.set(col.id, json.data.id);
+            } catch {
+              // keep local id if sync fails
+            }
+          })
+        );
+
         if (!alive) return;
         setState(prev => {
-          const backendIds = new Set(rows.map(r => r.id));
           const mergedFromServer = rows.map(r => {
             const prevCol = prev.collections.find(c => c.id === r.id);
             return {
@@ -76,10 +99,12 @@ export function usePlaylists() {
               createdAt: prevCol?.createdAt ?? new Date().toISOString(),
             };
           });
-          const localsOnly = prev.collections.filter(c => !backendIds.has(c.id));
+          const stillLocal = prev.collections
+            .filter(c => !backendIds.has(c.id))
+            .map(c => (idMap.has(c.id) ? { ...c, id: idMap.get(c.id)! } : c));
           return {
             ...prev,
-            collections: [...mergedFromServer, ...localsOnly],
+            collections: [...mergedFromServer, ...stillLocal],
           };
         });
       })

@@ -22,7 +22,7 @@ export function mapMovieItem(it: MovieSearchItem): Movie {
     releaseYear: Number(it.release_date?.slice(0, 4)) || 0,
     tags: (it.tags ?? []).map(t => t.name),
     tagIds: (it.tags ?? []).map(t => t.id),
-    rating: 0,
+    rating: it.average_rating ?? 0,
     posterUrl: it.poster_path,
     description: it.description,
   };
@@ -45,6 +45,7 @@ export type MovieSearchItem = {
   release_date: string;
   tags: MovieTag[];
   poster_path?: string;
+  average_rating?: number;
 };
 
 export type MovieSearchDataV2 = {
