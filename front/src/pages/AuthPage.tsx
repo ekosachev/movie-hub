@@ -57,7 +57,7 @@ export const AuthPage: React.FC = () => {
 
       const { token } = await authApi.login(email.trim(), password);
       login(email.trim(), token);
-      navigate('/');
+      navigate(mode === 'register' ? '/onboarding' : '/');
     } catch (err: unknown) {
       if (err instanceof ApiError) {
         setError(err.message);
