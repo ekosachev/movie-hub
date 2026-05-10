@@ -11,6 +11,7 @@ import {
   updateCollection,
 } from './storage';
 import type { ListType, PlaylistsState } from './types';
+import { fetchMyCollections } from '../api/collections';
 import { addMovieToSystemList, fetchSystemLists, removeMovieFromSystemList } from '../api/userLists';
 
 function userKeyFromAuth(user: { email: string } | null): string {
@@ -46,6 +47,42 @@ export function usePlaylists() {
       })
       .catch(() => {
         // Offline-first fallback: keep localStorage lists if backend is unavailable
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [user?.token]);
+
+  useEffect(() => {
+    if (!user?.token) return;
+    let alive = true;
+
+    fetchMyCollections(user.token)
+      .then(rows => {
+        if (!alive) return;
+        setState(prev => {
+          const backendIds = new Set(rows.map(r => r.id));
+          const mergedFromServer = rows.map(r => {
+            const prevCol = prev.collections.find(c => c.id === r.id);
+            return {
+              id: r.id,
+              title: r.name,
+              description: prevCol?.description ?? '',
+              isPublic: r.is_public,
+              movieIds: (r.movie_ids ?? []).map(Number),
+              createdAt: prevCol?.createdAt ?? new Date().toISOString(),
+            };
+          });
+          const localsOnly = prev.collections.filter(c => !backendIds.has(c.id));
+          return {
+            ...prev,
+            collections: [...mergedFromServer, ...localsOnly],
+          };
+        });
+      })
+      .catch(() => {
+        // keep localStorage-only collections if backend is unavailable
       });
 
     return () => {
