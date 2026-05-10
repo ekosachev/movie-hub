@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { postComment, postRate, updateRate, deleteRate, fetchComments, fetchRates, fetchMovieCasts, deleteComment, createCast, linkCastToMovie, updateMovie, deleteMovie, uploadPoster, createReaction, updateReaction, deleteReaction, updateCast, deleteCast } from '../api/movies';
+import { postComment, postRate, updateRate, deleteRate, fetchComments, fetchRates, fetchMovieCasts, deleteComment, createCast, linkCastToMovie, updateMovie, deleteMovie, uploadPoster, createReaction, updateReaction, deleteReaction, updateCast, deleteCast, fetchTags } from '../api/movies';
 import type { CommentReaction } from '../api/movies';
 import { usePlaylists } from '../playlists/usePlaylists';
 
@@ -104,7 +104,8 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onC
   const [showEditForm, setShowEditForm] = useState(false);
   const [editTitle, setEditTitle] = useState(movie.title);
   const [editDescription, setEditDescription] = useState(movie.description ?? '');
-  const [editTagIds, setEditTagIds] = useState(movie.tagIds?.join(', ') ?? '');
+  const [editTagIds, setEditTagIds] = useState<number[]>(movie.tagIds ?? []);
+  const [availableTags, setAvailableTags] = useState<{ id: number; name: string }[]>([]);
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -365,8 +366,7 @@ setComments(mapped);
     setEditLoading(true);
     setEditError('');
     try {
-      const tagIds = editTagIds.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
-      await updateMovie(movie.id, { title: editTitle, description: editDescription, tagIds }, user.token);
+      await updateMovie(movie.id, { title: editTitle, description: editDescription, tagIds: editTagIds }, user.token);
       onUpdated?.({ title: editTitle, description: editDescription });
       setShowEditForm(false);
     } catch (err) {
@@ -464,12 +464,23 @@ setComments(mapped);
                   className="bg-background/60 border border-gray-700/50 rounded-xl px-4 py-2 text-sm text-white outline-none focus:border-accent/50 resize-none"
                   placeholder="Описание"
                 />
-                <input
-                  value={editTagIds}
-                  onChange={e => setEditTagIds(e.target.value)}
-                  className="bg-background/60 border border-gray-700/50 rounded-xl px-4 py-2 text-sm text-white outline-none focus:border-accent/50"
-                  placeholder="ID тегов через запятую"
-                />
+                {availableTags.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {availableTags.map(tag => {
+                      const active = editTagIds.includes(tag.id);
+                      return (
+                        <button
+                          key={tag.id}
+                          type="button"
+                          onClick={() => setEditTagIds(prev => active ? prev.filter(id => id !== tag.id) : [...prev, tag.id])}
+                          className={`px-3 py-1 rounded-full text-xs font-bold border transition-colors ${active ? 'bg-accent text-[#181A1C] border-accent' : 'bg-background text-gray-300 border-gray-700 hover:border-accent/40'}`}
+                        >
+                          {tag.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
                 {editError && <p className="text-red-400 text-xs">{editError}</p>}
                 <div className="flex gap-2">
                   <button type="submit" disabled={editLoading} className="bg-accent text-[#181A1C] font-bold text-sm px-4 py-1.5 rounded-lg hover:opacity-90 disabled:opacity-50">
@@ -486,7 +497,7 @@ setComments(mapped);
                   <h2 className="text-3xl font-bold text-white mb-2 leading-tight">{movie.title}</h2>
                   {canUpdateMovies && (
                     <div className="flex gap-2 shrink-0 mt-1">
-                      <button onClick={() => setShowEditForm(true)} className="text-gray-400 hover:text-accent transition-colors" title="Редактировать">
+                      <button onClick={() => { setShowEditForm(true); if (availableTags.length === 0) fetchTags().then(setAvailableTags).catch(() => {}); }} className="text-gray-400 hover:text-accent transition-colors" title="Редактировать">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                         </svg>
