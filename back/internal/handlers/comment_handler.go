@@ -40,7 +40,7 @@ func (h *CommentHandler) RegisterRoutes(router *gin.RouterGroup) {
 		}
 	}
 	adminComments := router.Group("/admin/comments").
-		Use(middleware.AuthMiddleware(), middleware.PermissionMiddleware("moderate_comments"))
+		Use(middleware.AuthMiddleware(), middleware.PermissionMiddleware("manage_comments"))
 	{
 		adminComments.GET("/latest", h.GetLatestAdmin)
 		adminComments.PATCH("/:id/status", h.ChangeStatus)
