@@ -69,3 +69,18 @@ export async function deleteCollection(id: number, token: string): Promise<ApiRe
   });
 }
 
+export async function postCollectionMovie(collectionId: number, movieId: number, token: string): Promise<void> {
+  await apiFetch<ApiResponse<unknown>>(`/collections/${collectionId}/movies`, {
+    method: 'POST',
+    token,
+    body: { movie_id: movieId },
+  });
+}
+
+export async function deleteCollectionMovie(collectionId: number, movieId: number, token: string): Promise<void> {
+  await apiFetch<ApiResponse<unknown>>(`/collections/${collectionId}/movies/${movieId}`, {
+    method: 'DELETE',
+    token,
+  });
+}
+

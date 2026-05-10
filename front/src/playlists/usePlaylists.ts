@@ -1,17 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import * as collectionsApi from '../api/collections';
+import type { UpdateCollectionRequest } from '../api/collections';
 import {
-  addMovieToCollection,
-  createCollection,
-  deleteCollection,
+  addMovieToCollection as addMovieToCollectionStorage,
+  createCollection as createCollectionStorage,
+  deleteCollection as deleteCollectionStorage,
   loadPlaylists,
-  removeMovieFromCollection,
+  removeMovieFromCollection as removeMovieFromCollectionStorage,
   savePlaylists,
   toggleMovieInList,
-  updateCollection,
+  updateCollection as updateCollectionStorage,
 } from './storage';
 import type { ListType, PlaylistsState } from './types';
-import { fetchMyCollections } from '../api/collections';
 import { addMovieToSystemList, fetchSystemLists, removeMovieFromSystemList } from '../api/userLists';
 
 function userKeyFromAuth(user: { email: string } | null): string {
@@ -46,7 +47,7 @@ export function usePlaylists() {
         }));
       })
       .catch(() => {
-        // Offline-first fallback: keep localStorage lists if backend is unavailable
+        // Offline-first fallback
       });
 
     return () => {
@@ -58,7 +59,8 @@ export function usePlaylists() {
     if (!user?.token) return;
     let alive = true;
 
-    fetchMyCollections(user.token)
+    collectionsApi
+      .fetchMyCollections(user.token)
       .then(rows => {
         if (!alive) return;
         setState(prev => {
@@ -82,7 +84,7 @@ export function usePlaylists() {
         });
       })
       .catch(() => {
-        // keep localStorage-only collections if backend is unavailable
+        // keep local-only collections
       });
 
     return () => {
@@ -110,27 +112,90 @@ export function usePlaylists() {
           ? removeMovieFromSystemList(token, list, movieId)
           : addMovieToSystemList(token, list, movieId)
         ).catch(() => {
-          // Revert on failure (keep UI consistent with backend)
           setState(prev => toggleMovieInList(prev, list, movieId));
         });
       },
-      createCollection: (data: { title: string; description: string; isPublic: boolean }) => {
-        setState(prev => createCollection(prev, data).state);
+
+      createCollection: async (data: { title: string; description: string; isPublic: boolean }) => {
+        if (!user?.token) {
+          setState(prev => createCollectionStorage(prev, data).state);
+          return;
+        }
+
+        try {
+          const json = await collectionsApi.createCollection(
+            { name: data.title, is_public: data.isPublic },
+            user.token
+          );
+          if (!json.success || !json.data) throw new Error(json.error || json.message || 'Create failed');
+          const c = json.data;
+          setState(prev => ({
+            ...prev,
+            collections: [
+              {
+                id: c.id,
+                title: c.name,
+                description: data.description,
+                isPublic: c.is_public,
+                movieIds: (c.movie_ids ?? []).map(Number),
+                createdAt: new Date().toISOString(),
+              },
+              ...prev.collections.filter(x => x.id !== c.id),
+            ],
+          }));
+        } catch {
+          setState(prev => createCollectionStorage(prev, data).state);
+        }
       },
-      deleteCollection: (collectionId: number) => {
-        setState(prev => deleteCollection(prev, collectionId));
+
+      deleteCollection: (collectionId: number): Promise<void> => {
+        if (!user?.token) {
+          setState(prev => deleteCollectionStorage(prev, collectionId));
+          return Promise.resolve();
+        }
+
+        return collectionsApi
+          .deleteCollection(collectionId, user.token)
+          .then(() => setState(prev => deleteCollectionStorage(prev, collectionId)));
       },
-      updateCollection: (
+
+      updateCollection: async (
         collectionId: number,
         patch: { title?: string; description?: string; isPublic?: boolean }
       ) => {
-        setState(prev => updateCollection(prev, collectionId, patch));
+        setState(prev => updateCollectionStorage(prev, collectionId, patch));
+
+        if (!user?.token) return;
+
+        const req: UpdateCollectionRequest = {};
+        if (patch.title !== undefined) req.name = patch.title;
+        if (patch.isPublic !== undefined) req.is_public = patch.isPublic;
+
+        if (Object.keys(req).length === 0) return;
+
+        try {
+          await collectionsApi.updateCollection(collectionId, req, user.token);
+        } catch {
+          /* описание только локально — не откатываем весь патч */
+        }
       },
+
       addMovieToCollection: (collectionId: number, movieId: number) => {
-        setState(prev => addMovieToCollection(prev, collectionId, movieId));
+        const token = user?.token;
+        setState(prev => addMovieToCollectionStorage(prev, collectionId, movieId));
+        if (!token) return;
+        collectionsApi.postCollectionMovie(collectionId, movieId, token).catch(() => {
+          setState(prev => removeMovieFromCollectionStorage(prev, collectionId, movieId));
+        });
       },
+
       removeMovieFromCollection: (collectionId: number, movieId: number) => {
-        setState(prev => removeMovieFromCollection(prev, collectionId, movieId));
+        const token = user?.token;
+        setState(prev => removeMovieFromCollectionStorage(prev, collectionId, movieId));
+        if (!token) return;
+        collectionsApi.deleteCollectionMovie(collectionId, movieId, token).catch(() => {
+          setState(prev => addMovieToCollectionStorage(prev, collectionId, movieId));
+        });
       },
     };
   }, [state.lists, user?.token]);
@@ -148,4 +213,3 @@ export function usePlaylists() {
 
   return { state, ...actions, ...selectors };
 }
-

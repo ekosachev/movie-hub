@@ -8,7 +8,7 @@ export interface NewCollectionData {
 
 interface CreateCollectionModalProps {
   onClose: () => void;
-  onSubmit: (data: NewCollectionData) => void;
+  onSubmit: (data: NewCollectionData) => void | Promise<void>;
 }
 
 export const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({ onClose, onSubmit }) => {
@@ -16,15 +16,17 @@ export const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({ on
   const [description, setDescription] = useState('');
   const [isPublic, setIsPublic] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
-    
-    onSubmit({
-      title: title.trim(),
-      description: description.trim(),
-      isPublic
-    });
+
+    await Promise.resolve(
+      onSubmit({
+        title: title.trim(),
+        description: description.trim(),
+        isPublic,
+      })
+    );
   };
 
   return (
