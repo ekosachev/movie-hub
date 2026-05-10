@@ -32,3 +32,17 @@ func (s *UserService) Create(ctx context.Context, entity *models.User) error {
 func (s *UserService) GetAll(ctx context.Context) ([]models.User, error) {
 	return s.Repo.GetAll(ctx)
 }
+
+func (s *UserService) GetByEmail(ctx context.Context, email string) (*models.User, error) {
+	users, err := s.Query(ctx, &models.User{EmailAddress: email})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if len(users) < 1 {
+		return nil, nil
+	}
+
+	return &users[0], nil
+}
