@@ -6,7 +6,15 @@ export type Collection = {
   name: string;
   is_public: boolean;
   user_id: number;
+  movie_ids?: number[];
 };
+
+function unwrapData<T>(json: ApiResponse<T>, fallback: string): T {
+  if (!json.success || json.data === undefined) {
+    throw new Error(json.error || json.message || fallback);
+  }
+  return json.data;
+}
 
 export type CreateCollectionRequest = {
   name: string;
@@ -20,6 +28,15 @@ export type UpdateCollectionRequest = {
 
 export async function getCollectionById(id: number): Promise<ApiResponse<Collection>> {
   return apiFetch<ApiResponse<Collection>>(`/collections/${id}`, { method: 'GET' });
+}
+
+/** GET /me/collections — все подборки текущего пользователя */
+export async function fetchMyCollections(token: string): Promise<Collection[]> {
+  const json = await apiFetch<ApiResponse<Collection[]>>('/me/collections', {
+    method: 'GET',
+    token,
+  });
+  return unwrapData(json, 'Failed to load collections');
 }
 
 export async function createCollection(
@@ -47,6 +64,21 @@ export async function updateCollection(
 
 export async function deleteCollection(id: number, token: string): Promise<ApiResponse<void>> {
   return apiFetch<ApiResponse<void>>(`/collections/${id}`, {
+    method: 'DELETE',
+    token,
+  });
+}
+
+export async function postCollectionMovie(collectionId: number, movieId: number, token: string): Promise<void> {
+  await apiFetch<ApiResponse<unknown>>(`/collections/${collectionId}/movies`, {
+    method: 'POST',
+    token,
+    body: { movie_id: movieId },
+  });
+}
+
+export async function deleteCollectionMovie(collectionId: number, movieId: number, token: string): Promise<void> {
+  await apiFetch<ApiResponse<unknown>>(`/collections/${collectionId}/movies/${movieId}`, {
     method: 'DELETE',
     token,
   });

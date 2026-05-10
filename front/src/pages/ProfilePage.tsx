@@ -71,8 +71,8 @@ export const ProfilePage: React.FC = () => {
     );
   };
 
-  const handleCreateCollection = (data: NewCollectionData) => {
-    createLocalCollection({
+  const handleCreateCollection = async (data: NewCollectionData) => {
+    await createLocalCollection({
       title: data.title,
       description: data.description,
       isPublic: data.isPublic,
@@ -91,10 +91,10 @@ export const ProfilePage: React.FC = () => {
     setEditIsPublic(col.isPublic);
   };
 
-  const submitEdit = () => {
+  const submitEdit = async () => {
     if (!editingCollectionId) return;
     if (!editTitle.trim()) return;
-    updateLocalCollection(editingCollectionId, {
+    await updateLocalCollection(editingCollectionId, {
       title: editTitle.trim(),
       description: editDescription.trim(),
       isPublic: editIsPublic,
@@ -226,7 +226,7 @@ export const ProfilePage: React.FC = () => {
                         onClick={() => {
                           const ok = window.confirm('Удалить подборку? Это действие нельзя отменить.');
                           if (!ok) return;
-                          deleteLocalCollection(col.id);
+                          void deleteLocalCollection(col.id).catch(() => {});
                         }}
                         className="text-xs bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/20 px-2 py-1 rounded"
                       >

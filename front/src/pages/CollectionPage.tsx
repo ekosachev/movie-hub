@@ -88,8 +88,9 @@ export const CollectionPage: React.FC = () => {
             onClick={() => {
               const ok = window.confirm('Удалить подборку? Это действие нельзя отменить.');
               if (!ok) return;
-              deleteCollection(collection.id);
-              navigate('/profile');
+              void deleteCollection(collection.id)
+                .then(() => navigate('/profile'))
+                .catch(() => {});
             }}
             className="bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/20 font-bold px-4 py-2 rounded-xl transition-colors"
           >

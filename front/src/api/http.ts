@@ -41,8 +41,17 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
 
   if (!res.ok) {
     const message =
-      (payload && typeof payload === 'object' && 'message' in payload && typeof payload.message === 'string'
-        ? payload.message
+      (payload &&
+      typeof payload === 'object' &&
+      'error' in payload &&
+      typeof (payload as { error?: unknown }).error === 'string'
+        ? (payload as { error: string }).error
+        : null) ||
+      (payload &&
+      typeof payload === 'object' &&
+      'message' in payload &&
+      typeof (payload as { message?: unknown }).message === 'string'
+        ? (payload as { message: string }).message
         : null) ||
       (typeof payload === 'string' && payload.trim() ? payload : null) ||
       res.statusText ||
