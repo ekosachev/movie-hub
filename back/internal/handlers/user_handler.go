@@ -55,6 +55,18 @@ func (h *UserHandler) Register(c *gin.Context) {
 		return
 	}
 
+	existingUser, err := h.Service.GetByEmail(c, req.Email)
+	if err != nil {
+		h.Logger.Error("Failed to check email availability", slog.String("error", err.Error()))
+		sendError(c, http.StatusInternalServerError, "Internal server error")
+		return
+	}
+
+	if existingUser != nil {
+		sendError(c, http.StatusConflict, "User with this email already exists")
+		return
+	}
+
 	user := &models.User{
 		Username:     req.Username,
 		EmailAddress: req.Email,
