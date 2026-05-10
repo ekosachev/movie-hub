@@ -407,14 +407,15 @@ func (h *MovieHanlder) UploadPoster(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, dto.APIResponse{Success: true})
+	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: map[string]string{
+		"poster_url": fullUrl,
+	}})
 }
 
 func (h *MovieHanlder) GetAverageRating(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
 	if err != nil || id <= 0 {
-		// Используй свою функцию отправки ошибок
 		c.JSON(http.StatusBadRequest, dto.APIResponse{Success: false, Error: "Invalid movie ID"})
 		return
 	}
