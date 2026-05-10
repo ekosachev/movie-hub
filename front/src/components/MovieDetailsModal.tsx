@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { postComment, postRate, updateRate, deleteRate, fetchComments, fetchRates, deleteComment, createCast, linkCastToMovie, updateMovie, deleteMovie, uploadPoster, createReaction, updateReaction, deleteReaction, updateCast, deleteCast } from '../api/movies';
+import { postComment, postRate, updateRate, deleteRate, fetchComments, fetchRates, fetchMovieCasts, deleteComment, createCast, linkCastToMovie, updateMovie, deleteMovie, uploadPoster, createReaction, updateReaction, deleteReaction, updateCast, deleteCast } from '../api/movies';
 import type { CommentReaction } from '../api/movies';
 import { usePlaylists } from '../playlists/usePlaylists';
 
@@ -126,6 +126,7 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onC
   const [newCommentText, setNewCommentText] = useState('');
   const [commentLoading, setCommentLoading] = useState(false);
   const [commentError, setCommentError] = useState('');
+  const [commentPending, setCommentPending] = useState(false);
 
   const [cast, setCast] = useState<Actor[]>(movie.cast || []);
   const [showAddActor, setShowAddActor] = useState(false);
@@ -183,6 +184,9 @@ setComments(mapped);
         }
       }
     });
+    fetchMovieCasts(movie.id).then(data => {
+      setCast(data.map(c => ({ id: c.id, name: c.name, photoUrl: c.photo_url || undefined })));
+    });
   }, [movie.id, userId]);
 
   const handleAddComment = async (e: React.FormEvent) => {
@@ -198,8 +202,7 @@ setComments(mapped);
     try {
       await postComment(movie.id, newCommentText.trim(), userId, user.token);
       setNewCommentText('');
-      const updated = await fetchComments(movie.id);
-      applyComments(updated);
+      setCommentPending(true);
     } catch (err) {
       setCommentError(err instanceof Error ? err.message : 'Ошибка');
     } finally {
@@ -753,10 +756,18 @@ setComments(mapped);
               <form onSubmit={handleAddComment} className="mb-4 flex flex-col gap-3 bg-background/30 p-4 rounded-xl border border-gray-700/30">
                 <textarea
                   value={newCommentText}
-                  onChange={e => setNewCommentText(e.target.value)}
+                  onChange={e => { setNewCommentText(e.target.value); setCommentPending(false); }}
                   placeholder="Напишите свой отзыв..."
                   className="w-full bg-transparent text-gray-200 text-sm placeholder-gray-500 outline-none resize-none min-h-[60px]"
                 />
+                {commentPending && (
+                  <p className="text-accent text-xs flex items-center gap-1.5">
+                    <svg className="w-3.5 h-3.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                    </svg>
+                    Комментарий отправлен на модерацию и появится после проверки
+                  </p>
+                )}
                 {commentError && <p className="text-red-400 text-xs">{commentError}</p>}
                 <div className="flex justify-end">
                   <button
