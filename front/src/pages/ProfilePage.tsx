@@ -6,7 +6,7 @@ import { MovieCard } from '../components/MovieCard';
 import { CreateCollectionModal, NewCollectionData } from '../components/CreateCollectionModal';
 import { usePlaylists } from '../playlists/usePlaylists';
 
-type TabType = 'favorites' | 'watched' | 'watchlist' | 'collections' | 'admin' | 'content';
+type TabType = 'favorites' | 'watched' | 'watchlist' | 'collections' | 'content';
 
 export const ProfilePage: React.FC = () => {
   const { user, hasPermission } = useAuth();
@@ -35,7 +35,6 @@ export const ProfilePage: React.FC = () => {
         ? 'content_manager'
         : 'user';
 
-  const canSeeAdminTab = role === 'admin';
   const canManageMovies = hasPermission('update_movies');
 
   const lists = state.lists;
@@ -46,7 +45,7 @@ export const ProfilePage: React.FC = () => {
     return mockMovies.filter(movie => ids.includes(movie.id));
   };
 
-  // Получаем фильмы для выбранной системной вкладки (если это не коллекции и не админка)
+  // Получаем фильмы для выбранной системной вкладки (если это не коллекции и не контент)
   const renderMoviesGrid = (movieIds: number[]) => {
     const movies = getMoviesByIds(movieIds);
     
@@ -165,14 +164,6 @@ export const ProfilePage: React.FC = () => {
             </>
           )}
 
-          {canSeeAdminTab && (
-            <>
-              <div className="w-px bg-gray-700 mx-2 my-2"></div>
-              <TabButton active={activeTab === 'admin'} onClick={() => setActiveTab('admin')} className="text-honey hover:text-honey/80">
-                ★ Админ-Панель
-              </TabButton>
-            </>
-          )}
         </div>
 
         {/* Область рендера выбранной вкладки */}
@@ -267,27 +258,6 @@ export const ProfilePage: React.FC = () => {
             </div>
           )}
 
-          {activeTab === 'admin' && (
-            <div className="flex flex-col items-center justify-center h-[400px] text-gray-400 gap-4 text-center">
-              <svg className="w-16 h-16 text-honey/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
-              <h2 className="text-2xl font-bold text-white">Дашборд Статистики</h2>
-              <p>MVP готов — открой отдельную страницу статистики.</p>
-              <div className="mt-2 flex flex-wrap gap-2 justify-center">
-                <Link
-                  to="/admin/stats"
-                  className="bg-honey/15 hover:bg-honey/20 border border-honey/30 text-honey font-bold px-5 py-2.5 rounded-xl transition-colors"
-                >
-                  Статистика →
-                </Link>
-                <Link
-                  to="/admin/moderation"
-                  className="bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/20 font-bold px-5 py-2.5 rounded-xl transition-colors"
-                >
-                  Модерация →
-                </Link>
-              </div>
-            </div>
-          )}
         </div>
       </main>
 

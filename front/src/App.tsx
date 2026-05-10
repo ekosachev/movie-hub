@@ -5,14 +5,11 @@ import { ProfilePage } from './pages/ProfilePage';
 import { CollectionPage } from './pages/CollectionPage';
 import { AuthPage } from './pages/AuthPage';
 import { OnboardingPage } from './pages/OnboardingPage';
-import { AdminStatsPage } from './pages/AdminStatsPage';
-import { AdminModerationPage } from './pages/AdminModerationPage';
 import { MovieCreatePage } from './pages/MovieCreatePage';
 import { Header } from './components/Header';
 import { useDebouncedValue } from './utils/useDebouncedValue';
 import { RequireAuth } from './routing/RequireAuth';
 import { RequirePermission } from './routing/RequirePermission';
-import { RequireAnyPermission } from './routing/RequireAnyPermission';
 
 const GlobalLayout: React.FC<{
   searchQuery: string;
@@ -70,22 +67,6 @@ const App: React.FC = () => {
             <RequireAuth>
               <CollectionPage />
             </RequireAuth>
-          }
-        />
-        <Route
-          path="/admin/stats"
-          element={
-            <RequireAnyPermission permissions={['delete_users', 'manage_comments']}>
-              <AdminStatsPage />
-            </RequireAnyPermission>
-          }
-        />
-        <Route
-          path="/admin/moderation"
-          element={
-            <RequireAnyPermission permissions={['delete_users', 'manage_comments']}>
-              <AdminModerationPage />
-            </RequireAnyPermission>
           }
         />
         <Route
