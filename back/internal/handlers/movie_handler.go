@@ -314,13 +314,21 @@ func (h *MovieHanlder) FindWithFilters(c *gin.Context) {
 			}
 		}
 
+		rating, err := h.RateService.GetAverageRating(c, movie.ID)
+		if err != nil {
+			h.Logger.Error("Failed to get average rating for movie", slog.String("error", err.Error()))
+			sendError(c, http.StatusInternalServerError, "Internal server error")
+			return
+		}
+
 		resp[i] = dto.MovieResponse{
-			ID:          movie.ID,
-			Title:       movie.Title,
-			Description: movie.Description,
-			ReleaseDate: movie.ReleaseDate.Format(time.DateOnly),
-			Tags:        tags,
-			PosterPath:  movie.PosterPath,
+			ID:            movie.ID,
+			Title:         movie.Title,
+			Description:   movie.Description,
+			ReleaseDate:   movie.ReleaseDate.Format(time.DateOnly),
+			Tags:          tags,
+			PosterPath:    movie.PosterPath,
+			AverageRaging: rating.OverallAverage,
 		}
 	}
 

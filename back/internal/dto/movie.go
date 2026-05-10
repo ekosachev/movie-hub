@@ -12,13 +12,14 @@ type CreateMovieRequest struct {
 }
 
 type MovieResponse struct {
-	ID          uint                 `json:"id"`
-	Title       string               `json:"title"`
-	Description string               `json:"description"`
-	ReleaseDate string               `json:"release_date"`
-	Tags        []TagResponse        `json:"tags"`
-	PosterPath  string               `json:"poster_path" binding:"omitempty"`
-	Cast        []MovieActorResponse `json:"cast"`
+	ID            uint                 `json:"id"`
+	Title         string               `json:"title"`
+	Description   string               `json:"description"`
+	ReleaseDate   string               `json:"release_date"`
+	Tags          []TagResponse        `json:"tags"`
+	PosterPath    string               `json:"poster_path" binding:"omitempty"`
+	Cast          []MovieActorResponse `json:"cast"`
+	AverageRaging float64              `json:"average_rating" binding:"omitempty"`
 }
 
 type UpdateMovieRequest struct {
