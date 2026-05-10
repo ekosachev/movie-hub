@@ -145,16 +145,17 @@ export async function deleteMovie(movieId: number, token: string): Promise<void>
   if (!res.ok || !json.success) throw new Error(json.error || 'Не удалось удалить фильм');
 }
 
-export async function uploadPoster(movieId: number, file: File, token: string): Promise<void> {
+export async function uploadPoster(movieId: number, file: File, token: string): Promise<string> {
   const formData = new FormData();
   formData.append('poster', file);
-  const res = await fetch(`/api/v1/movies/${movieId}`, {
-    method: 'POST',
+  const res = await fetch(`/api/v1/movies/${movieId}/poster`, {
+    method: 'PATCH',
     headers: { 'Authorization': `Bearer ${token}` },
     body: formData,
   });
-  const json: ApiResponse<unknown> = await res.json();
+  const json: ApiResponse<{ poster_url: string }> = await res.json();
   if (!res.ok || !json.success) throw new Error(json.error || 'Не удалось загрузить постер');
+  return json.data!.poster_url;
 }
 
 export interface ReactionResponse {

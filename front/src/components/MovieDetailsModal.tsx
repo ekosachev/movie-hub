@@ -36,7 +36,7 @@ interface MovieDetailsModalProps {
   movie: MovieDetails;
   onClose: () => void;
   onDeleted?: () => void;
-  onUpdated?: (fields: { title?: string; description?: string }) => void;
+  onUpdated?: (fields: { title?: string; description?: string; posterUrl?: string }) => void;
 }
 
 interface CriteriaRating {
@@ -109,6 +109,7 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({ movie, onC
   const [editError, setEditError] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [posterUploading, setPosterUploading] = useState(false);
+  const [posterUrl, setPosterUrl] = useState(movie.posterUrl);
   const {
     state: playlistsState,
     isInList,
@@ -391,7 +392,9 @@ setComments(mapped);
     if (!file || !user?.token) return;
     setPosterUploading(true);
     try {
-      await uploadPoster(movie.id, file, user.token);
+      const newUrl = await uploadPoster(movie.id, file, user.token);
+      setPosterUrl(newUrl);
+      onUpdated?.({ posterUrl: newUrl });
     } catch (err) {
       console.error(err);
     } finally {
@@ -416,8 +419,8 @@ setComments(mapped);
 
         {/* Poster */}
         <div className="w-full md:w-2/5 h-64 md:h-auto relative bg-gray-800 shrink-0">
-          {movie.posterUrl ? (
-            <img src={movie.posterUrl} alt={movie.title} className="w-full h-full object-cover" />
+          {posterUrl ? (
+            <img src={posterUrl} alt={movie.title} className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-gray-500">
               <svg className="w-16 h-16 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
