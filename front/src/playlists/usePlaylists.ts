@@ -11,6 +11,7 @@ import {
   updateCollection,
 } from './storage';
 import type { ListType, PlaylistsState } from './types';
+import { fetchSystemLists } from '../api/userLists';
 
 function userKeyFromAuth(user: { email: string } | null): string {
   if (!user) return 'anon';
@@ -26,6 +27,31 @@ export function usePlaylists() {
   useEffect(() => {
     setState(loadPlaylists(userKey));
   }, [userKey]);
+
+  useEffect(() => {
+    if (!user?.token) return;
+    let alive = true;
+
+    fetchSystemLists(user.token)
+      .then(lists => {
+        if (!alive) return;
+        setState(prev => ({
+          ...prev,
+          lists: {
+            favorites: lists.favorites ?? [],
+            watched: lists.watched ?? [],
+            watchlist: lists.watchlist ?? [],
+          },
+        }));
+      })
+      .catch(() => {
+        // Offline-first fallback: keep localStorage lists if backend is unavailable
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [user?.token]);
 
   useEffect(() => {
     savePlaylists(userKey, state);
