@@ -55,7 +55,7 @@ func (h *MovieHanlder) RegisterRoutes(router *gin.RouterGroup) {
 			protectedGroup.POST("/", h.Create)
 			protectedGroup.PATCH("/:id", h.Update)
 			protectedGroup.DELETE("/:id", h.Delete)
-			protectedGroup.POST("/:id", h.UploadPoster)
+			protectedGroup.PATCH("/:id/poster", h.UploadPoster)
 		}
 	}
 }

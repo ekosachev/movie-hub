@@ -33,11 +33,6 @@ func Connect_to_db(
 		return nil, err
 	}
 
-	err = db.SetupJoinTable(&models.Movie{}, "Casts", &models.MovieCast{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to setup join table: %w", err)
-	}
-
 	db.AutoMigrate(
 		&models.Role{},
 		&models.User{},
@@ -50,6 +45,11 @@ func Connect_to_db(
 		&models.Rate{},
 		&models.Reaction{},
 	)
+
+	err = db.SetupJoinTable(&models.Movie{}, "Cast", &models.MovieCast{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to setup join table: %w", err)
+	}
 
 	Seed(db, logger)
 	return db, nil
