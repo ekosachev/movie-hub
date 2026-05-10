@@ -182,7 +182,7 @@ setComments(mapped);
         }
       }
     });
-  }, [movie.id]);
+  }, [movie.id, userId]);
 
   const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -252,7 +252,6 @@ setComments(mapped);
     setReactionPending(prev => ({ ...prev, [commentId]: true }));
     const existing = userReactions[commentId];
     const voteKey = isPositive ? 'like' : 'dislike';
-    const otherKey = isPositive ? 'dislike' : 'like';
 
     try {
       if (existing) {
@@ -290,7 +289,6 @@ setComments(mapped);
     } finally {
       setReactionPending(prev => { const next = { ...prev }; delete next[commentId]; return next; });
     }
-    void otherKey;
   };
 
   const handleLike = (commentId: number) => handleReaction(commentId, true);

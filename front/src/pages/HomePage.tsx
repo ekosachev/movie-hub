@@ -220,7 +220,7 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
       });
 
     return () => abort.abort();
-  }, [searchQuery, activeFilters, pageSize, offset, shouldUseServer, refreshKey]);
+  }, [searchQuery, activeFilters, pageSize, offset, shouldUseServer, refreshKey, tagNameToId]);
 
   const filteredMovies = useMemo(() => {
     if (shouldUseServer && (serverItems.length > 0 || serverCount > 0 || loading || error)) return serverItems;
