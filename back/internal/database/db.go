@@ -2,6 +2,7 @@ package database
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/ekosachev/movie-hub/internal/models"
 	"gorm.io/driver/postgres"
@@ -15,6 +16,7 @@ func Connect_to_db(
 	dbname string,
 	port string,
 	time_zone string,
+	logger *slog.Logger,
 ) (*gorm.DB, error) {
 	dsn := fmt.Sprintf(
 		"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=%s",
@@ -31,6 +33,11 @@ func Connect_to_db(
 		return nil, err
 	}
 
+	err = db.SetupJoinTable(&models.Movie{}, "Casts", &models.MovieCast{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to setup join table: %w", err)
+	}
+
 	db.AutoMigrate(
 		&models.Role{},
 		&models.User{},
@@ -44,5 +51,6 @@ func Connect_to_db(
 		&models.Reaction{},
 	)
 
+	Seed(db, logger)
 	return db, nil
 }

@@ -11,7 +11,7 @@ import (
 	"github.com/ekosachev/movie-hub/internal/repositories"
 	"github.com/ekosachev/movie-hub/internal/services"
 	"github.com/gin-gonic/gin"
-	"github.com/zsais/go-gin-prometheus"
+	ginprometheus "github.com/zsais/go-gin-prometheus"
 )
 
 func main() {
@@ -32,7 +32,7 @@ func main() {
 		})
 	})
 
-	db, err := database.Connect_to_db(cfg.DBHost, cfg.DBUser, cfg.DBPassword, cfg.DBName, cfg.DBPort, cfg.DBTimezone)
+	db, err := database.Connect_to_db(cfg.DBHost, cfg.DBUser, cfg.DBPassword, cfg.DBName, cfg.DBPort, cfg.DBTimezone, logger)
 	if err != nil {
 		logger.Error("Could not connect to database", "error", err.Error())
 		return
