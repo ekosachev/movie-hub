@@ -11,7 +11,7 @@ import {
   updateCollection,
 } from './storage';
 import type { ListType, PlaylistsState } from './types';
-import { fetchSystemLists } from '../api/userLists';
+import { addMovieToSystemList, fetchSystemLists, removeMovieFromSystemList } from '../api/userLists';
 
 function userKeyFromAuth(user: { email: string } | null): string {
   if (!user) return 'anon';
@@ -60,7 +60,22 @@ export function usePlaylists() {
   const actions = useMemo(() => {
     return {
       toggleInList: (list: ListType, movieId: number) => {
+        const token = user?.token;
+        if (!token) {
+          setState(prev => toggleMovieInList(prev, list, movieId));
+          return;
+        }
+
+        const wasInList = state.lists[list].includes(movieId);
         setState(prev => toggleMovieInList(prev, list, movieId));
+
+        (wasInList
+          ? removeMovieFromSystemList(token, list, movieId)
+          : addMovieToSystemList(token, list, movieId)
+        ).catch(() => {
+          // Revert on failure (keep UI consistent with backend)
+          setState(prev => toggleMovieInList(prev, list, movieId));
+        });
       },
       createCollection: (data: { title: string; description: string; isPublic: boolean }) => {
         setState(prev => createCollection(prev, data).state);
@@ -81,7 +96,7 @@ export function usePlaylists() {
         setState(prev => removeMovieFromCollection(prev, collectionId, movieId));
       },
     };
-  }, []);
+  }, [state.lists, user?.token]);
 
   const selectors = useMemo(() => {
     return {
