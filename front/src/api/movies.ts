@@ -46,6 +46,20 @@ export function decodeUserId(token: string): number | null {
   }
 }
 
+export interface CastResponse {
+  id: number;
+  name: string;
+  photo_url: string;
+  role: string;
+}
+
+export async function fetchMovieCasts(movieId: number): Promise<CastResponse[]> {
+  const res = await fetch(`/api/v1/movies/${movieId}/casts`);
+  const json: ApiResponse<CastResponse[]> = await res.json();
+  if (!res.ok || !json.success) return [];
+  return json.data ?? [];
+}
+
 export async function fetchComments(movieId: number): Promise<CommentResponse[]> {
   const res = await fetch(`/api/v1/movies/${movieId}/comments`);
   const json: ApiResponse<CommentResponse[]> = await res.json();
@@ -145,16 +159,17 @@ export async function deleteMovie(movieId: number, token: string): Promise<void>
   if (!res.ok || !json.success) throw new Error(json.error || 'Не удалось удалить фильм');
 }
 
-export async function uploadPoster(movieId: number, file: File, token: string): Promise<void> {
+export async function uploadPoster(movieId: number, file: File, token: string): Promise<string> {
   const formData = new FormData();
   formData.append('poster', file);
-  const res = await fetch(`/api/v1/movies/${movieId}`, {
-    method: 'POST',
+  const res = await fetch(`/api/v1/movies/${movieId}/poster`, {
+    method: 'PATCH',
     headers: { 'Authorization': `Bearer ${token}` },
     body: formData,
   });
-  const json: ApiResponse<unknown> = await res.json();
+  const json: ApiResponse<{ poster_url: string }> = await res.json();
   if (!res.ok || !json.success) throw new Error(json.error || 'Не удалось загрузить постер');
+  return json.data!.poster_url;
 }
 
 export interface ReactionResponse {
@@ -319,4 +334,40 @@ export async function deleteRate(rateId: number, token: string): Promise<void> {
   });
   const json: ApiResponse<null> = await res.json();
   if (!res.ok || !json.success) throw new Error(json.error || 'Не удалось удалить оценку');
+}
+
+export interface AdminComment {
+  ID: number;
+  Content: string;
+  UserID: number;
+  MovieID: number;
+  Status: 'pending' | 'approved' | 'rejected';
+  CreatedAt: string;
+}
+
+export async function fetchAdminComments(
+  token: string,
+  limit = 50,
+  offset = 0
+): Promise<{ items: AdminComment[]; count: number }> {
+  const res = await fetch(`/api/v1/admin/comments/latest?limit=${limit}&offset=${offset}`, {
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+  const json: ApiResponse<{ items: AdminComment[]; count: number }> = await res.json();
+  if (!res.ok || !json.success) return { items: [], count: 0 };
+  return { items: (json.data?.items as AdminComment[]) ?? [], count: json.data?.count ?? 0 };
+}
+
+export async function updateCommentStatus(
+  commentId: number,
+  status: 'pending' | 'approved' | 'rejected',
+  token: string
+): Promise<void> {
+  const res = await fetch(`/api/v1/admin/comments/${commentId}/status`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify({ status }),
+  });
+  const json: ApiResponse<unknown> = await res.json();
+  if (!res.ok || !json.success) throw new Error(json.error || 'Не удалось изменить статус');
 }

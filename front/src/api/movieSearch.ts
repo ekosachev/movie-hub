@@ -4,6 +4,38 @@ type ApiResponse<T> = {
   error?: string;
 };
 
+export type Movie = {
+  id: number;
+  title: string;
+  releaseYear: number;
+  tags: string[];
+  tagIds: number[];
+  rating: number;
+  posterUrl?: string;
+  description?: string;
+};
+
+export function mapMovieItem(it: MovieSearchItem): Movie {
+  return {
+    id: it.id,
+    title: it.title,
+    releaseYear: Number(it.release_date?.slice(0, 4)) || 0,
+    tags: (it.tags ?? []).map(t => t.name),
+    tagIds: (it.tags ?? []).map(t => t.id),
+    rating: it.average_rating ?? 0,
+    posterUrl: it.poster_path,
+    description: it.description,
+  };
+}
+
+export async function fetchMovieById(id: number): Promise<Movie | null> {
+  const res = await fetch(`/api/v1/movies/${id}`);
+  if (!res.ok) return null;
+  const json: ApiResponse<MovieSearchItem> = await res.json();
+  if (!json.success || !json.data) return null;
+  return mapMovieItem(json.data);
+}
+
 export type MovieTag = { id: number; name: string };
 
 export type MovieSearchItem = {
@@ -13,6 +45,7 @@ export type MovieSearchItem = {
   release_date: string;
   tags: MovieTag[];
   poster_path?: string;
+  average_rating?: number;
 };
 
 export type MovieSearchDataV2 = {

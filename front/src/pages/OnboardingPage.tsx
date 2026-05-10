@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { mockTags } from '../mockData';
+import { fetchTags } from '../api/movies';
 
 const genreEmojis: Record<string, string> = {
   'Боевик': '💥',
@@ -26,6 +26,11 @@ export const OnboardingPage: React.FC = () => {
   const navigate = useNavigate();
   const [selected, setSelected] = useState<string[]>([]);
   const [error, setError] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetchTags().then(data => setTags(data.map(t => t.name))).catch(() => {});
+  }, []);
 
   const toggle = (genre: string) => {
     setError('');
@@ -58,7 +63,7 @@ export const OnboardingPage: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
-          {mockTags.map(genre => {
+          {tags.map(genre => {
             const isSelected = selected.includes(genre);
             return (
               <button
