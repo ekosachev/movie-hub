@@ -125,8 +125,8 @@ func (r *MovieRepository) FindWithFilters(ctx context.Context, filter dto.MovieF
 func (r *MovieRepository) GetCastsByMovieID(ctx context.Context, movieID uint) ([]models.MovieCast, error) {
 	var casts []models.MovieCast
 	err := r.db.WithContext(ctx).
-		Preload("Cast").
-		Where("movie_id = ?", movieID).
+		Joins("Cast").
+		Where("movie_casts.movie_id = ?", movieID).
 		Find(&casts).Error
 	return casts, err
 }
