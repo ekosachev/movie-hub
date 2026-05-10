@@ -1,6 +1,8 @@
 export type ApiResponse<T> = {
   success: boolean;
   data?: T;
+  /** Backend uses `error` in dto.APIResponse */
+  error?: string;
   message?: string;
 };
 
