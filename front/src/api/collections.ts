@@ -36,7 +36,7 @@ export async function fetchMyCollections(token: string): Promise<Collection[]> {
     method: 'GET',
     token,
   });
-  return unwrapData(json, 'Failed to load collections');
+  return unwrapData(json, 'Failed to load collections') ?? [];
 }
 
 export async function createCollection(

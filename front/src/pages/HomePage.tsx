@@ -5,8 +5,7 @@ import { MovieCard } from '../components/MovieCard';
 import { MovieDetailsModal } from '../components/MovieDetailsModal';
 import { CreateMovieModal } from '../components/CreateMovieModal';
 import { useAuth } from '../context/AuthContext';
-import { mockMovies } from '../mockData';
-import { searchMovies } from '../api/movieSearch';
+import { searchMovies, mapMovieItem, type Movie } from '../api/movieSearch';
 import { fetchTags } from '../api/movies';
 
 interface HomePageProps {
@@ -21,7 +20,7 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
   const [showCreateMovie, setShowCreateMovie] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [serverItems, setServerItems] = useState<typeof mockMovies>([]);
+  const [serverItems, setServerItems] = useState<Movie[]>([]);
   const [serverCount, setServerCount] = useState<number>(0);
   const [tagNameToId, setTagNameToId] = useState<Record<string, number> | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -43,12 +42,8 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
         for (const t of tags) map[t.name] = t.id;
         setTagNameToId(map);
       })
-      .catch(() => {
-        // keep tagNameToId null: tag filtering stays client-side
-      });
-    return () => {
-      alive = false;
-    };
+      .catch(() => {});
+    return () => { alive = false; };
   }, []);
 
   useEffect(() => {
@@ -78,8 +73,6 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
     if (filterChanged || searchChanged) {
       prevFilterKey.current = currentFilterKey;
       prevSearch.current = searchQuery;
-
-      // Reset page to 1 when query/filters change
       setSearchParams(prev => {
         const next = new URLSearchParams(prev);
         if (next.get('page') && next.get('page') !== '1') next.set('page', '1');
@@ -95,16 +88,12 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
       const next = new URLSearchParams(prev);
       if (filters.tags.length > 0) next.set('tags', filters.tags.join(','));
       else next.delete('tags');
-
       if (filters.rating && filters.rating !== 'Все') next.set('rating', filters.rating);
       else next.delete('rating');
-
       if (filters.yearFrom) next.set('yfrom', String(filters.yearFrom));
       else next.delete('yfrom');
-
       if (filters.yearTo) next.set('yto', String(filters.yearTo));
       else next.delete('yto');
-
       next.delete('page');
       return next;
     }, { replace: true });
@@ -146,7 +135,6 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
       return;
     }
 
-    // Try server search; fallback to mocks if backend not ready
     const abort = new AbortController();
     setLoading(true);
     setError('');
@@ -156,12 +144,9 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
         ? Number.parseInt(String(activeFilters.rating).replace(/\D/g, ''), 10) || 0
         : 0;
 
-    const dateFrom =
-      activeFilters?.yearFrom ? `${String(activeFilters.yearFrom)}-01-01` : undefined;
-    const dateTo =
-      activeFilters?.yearTo ? `${String(activeFilters.yearTo)}-12-31` : undefined;
+    const dateFrom = activeFilters?.yearFrom ? `${String(activeFilters.yearFrom)}-01-01` : undefined;
+    const dateTo = activeFilters?.yearTo ? `${String(activeFilters.yearTo)}-12-31` : undefined;
 
-    // We keep tag names in UI; if we can map name -> id (GET /tags), we do server filtering.
     const tagIds =
       canUseServerTagFiltering && activeFilters?.tags?.length
         ? activeFilters.tags
@@ -169,48 +154,29 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
             .filter((v): v is number => typeof v === 'number')
         : [];
 
-    const limit = pageSize;
-
     searchMovies({
       title: searchQuery.trim() || undefined,
       minRating: minRating > 0 ? minRating : undefined,
       dateFrom,
       dateTo,
       tagIds,
-      limit,
+      limit: pageSize,
       offset,
       signal: abort.signal,
     })
       .then(({ items, count }) => {
         if (abort.signal.aborted) return;
-        const mapped = items.map(it => ({
-          id: it.id,
-          title: it.title,
-          releaseYear: Number(it.release_date?.slice(0, 4)) || 0,
-          tags: (it.tags ?? []).map(t => t.name),
-          tagIds: (it.tags ?? []).map(t => t.id),
-          rating: 0,
-          posterUrl: it.poster_path,
-          description: it.description,
-          cast: [],
-          comments: [],
-        }));
-
+        const mapped = items.map(mapMovieItem);
         if (!canUseServerTagFiltering && activeFilters?.tags?.length) {
-          // Client-side tag name filtering (until tag->id mapping exists)
-          const tagFiltered = mapped.filter(m => m.tags.some(t => activeFilters.tags.includes(t)));
-          setServerItems(tagFiltered);
-          // "count" is always TOTAL from backend; "returned" is items.length (or tagFiltered.length here).
-          setServerCount(count);
+          setServerItems(mapped.filter(m => m.tags.some(t => activeFilters.tags.includes(t))));
         } else {
           setServerItems(mapped);
-          setServerCount(count);
         }
+        setServerCount(count);
       })
       .catch(err => {
         if (abort.signal.aborted) return;
         setError(err instanceof Error ? err.message : 'Search failed');
-        // fallback to mocks (keep previous behavior)
         setServerItems([]);
         setServerCount(0);
       })
@@ -222,42 +188,16 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
     return () => abort.abort();
   }, [searchQuery, activeFilters, pageSize, offset, shouldUseServer, refreshKey, tagNameToId]);
 
-  const filteredMovies = useMemo(() => {
-    if (shouldUseServer && (serverItems.length > 0 || serverCount > 0 || loading || error)) return serverItems;
+  const filteredMovies = serverItems;
 
-    // Fallback: mock filtering
-    return mockMovies.filter(movie => {
-      const matchesSearch = movie.title.toLowerCase().includes(searchQuery.toLowerCase());
-      if (!matchesSearch) return false;
+  const selectedMovie = useMemo(
+    () => selectedMovieId != null ? filteredMovies.find(m => m.id === selectedMovieId) : undefined,
+    [filteredMovies, selectedMovieId]
+  );
 
-      if (activeFilters) {
-        if (activeFilters.tags.length > 0) {
-          const hasTag = movie.tags.some(t => activeFilters.tags.includes(t));
-          if (!hasTag) return false;
-        }
-
-        if (activeFilters.rating !== 'Все') {
-          const minRating = parseInt(activeFilters.rating.replace(/\D/g, '')) || 0;
-          if (movie.rating < minRating) return false;
-        }
-
-        if (activeFilters.yearFrom && movie.releaseYear < Number(activeFilters.yearFrom)) return false;
-        if (activeFilters.yearTo && movie.releaseYear > Number(activeFilters.yearTo)) return false;
-      }
-
-      return true;
-    });
-  }, [serverItems, serverCount, loading, error, searchQuery, activeFilters, shouldUseServer]);
-
-  const selectedMovie = useMemo(() => {
-    if (selectedMovieId == null) return undefined;
-    return filteredMovies.find(m => m.id === selectedMovieId) ?? mockMovies.find(m => m.id === selectedMovieId);
-  }, [filteredMovies, selectedMovieId]);
-
-  const totalCount = shouldUseServer ? (serverCount || filteredMovies.length) : filteredMovies.length;
+  const totalCount = serverCount || filteredMovies.length;
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const safePage = Math.min(page, totalPages);
-  const pageMovies = filteredMovies;
 
   const setPage = (nextPage: number) => {
     const clamped = Math.min(Math.max(1, nextPage), totalPages);
@@ -309,9 +249,10 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
             )}
           </div>
         </div>
+
         {error && (
           <div className="mb-4 bg-red-500/10 border border-red-500/30 text-red-400 text-sm px-4 py-3 rounded-xl">
-            {error} (fallback: local mock data)
+            {error}
           </div>
         )}
 
@@ -320,8 +261,8 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {pageMovies.length > 0 ? (
-            pageMovies.map(movie => (
+          {filteredMovies.length > 0 ? (
+            filteredMovies.map(movie => (
               <MovieCard
                 key={movie.id}
                 id={movie.id}
@@ -334,9 +275,11 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
               />
             ))
           ) : (
-            <div className="col-span-full py-12 text-center text-gray-400 font-medium">
-              Ничего не найдено{searchQuery.trim() ? ` по запросу «${searchQuery}»` : ''}... 🥲
-            </div>
+            !loading && (
+              <div className="col-span-full py-12 text-center text-gray-400 font-medium">
+                Ничего не найдено{searchQuery.trim() ? ` по запросу «${searchQuery}»` : ''}... 🥲
+              </div>
+            )
           )}
         </div>
 
