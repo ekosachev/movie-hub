@@ -125,9 +125,25 @@ export const ProfilePage: React.FC = () => {
           
           {/* Плашка роли */}
           {role === 'admin' && (
-            <span className="mt-2 bg-honey/10 text-honey border border-honey/30 px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase">
-              Administrator
-            </span>
+            <div className="mt-2 flex flex-col items-center gap-2 w-full">
+              <span className="bg-honey/10 text-honey border border-honey/30 px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase">
+                Administrator
+              </span>
+              <div className="flex flex-col gap-1.5 w-full max-w-[220px] text-center">
+                <Link
+                  to="/admin/moderation"
+                  className="text-sm font-bold text-honey hover:text-white border border-honey/30 rounded-xl py-2 px-3 bg-honey/5 hover:bg-honey/10 transition-colors"
+                >
+                  Модерация комментариев
+                </Link>
+                <Link
+                  to="/admin/stats"
+                  className="text-sm font-bold text-gray-300 hover:text-white border border-gray-600 rounded-xl py-2 px-3 hover:bg-gray-800/50 transition-colors"
+                >
+                  Статистика
+                </Link>
+              </div>
+            </div>
           )}
           {role === 'content_manager' && (
             <span className="mt-2 bg-blue-500/10 text-blue-400 border border-blue-500/30 px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase">
