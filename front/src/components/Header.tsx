@@ -9,8 +9,14 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ searchQuery, setSearchQuery }) => {
-  const { user, logout } = useAuth();
+  const { user, logout, hasPermission } = useAuth();
   const navigate = useNavigate();
+
+  const canAccessAdmin =
+    hasPermission('delete_users') ||
+    hasPermission('manage_comments') ||
+    hasPermission('ban_users') ||
+    hasPermission('remove_comments');
 
   const handleUserButtonClick = () => {
     if (user) {
@@ -32,6 +38,22 @@ export const Header: React.FC<HeaderProps> = ({ searchQuery, setSearchQuery }) =
       <div className="flex items-center gap-3 shrink-0">
         {user ? (
           <>
+            {canAccessAdmin && (
+              <div className="hidden sm:flex items-center gap-2 mr-1">
+                <Link
+                  to="/admin/moderation"
+                  className="text-xs font-bold uppercase tracking-wide text-honey hover:text-white px-3 py-2 rounded-xl border border-honey/30 hover:border-honey/60 bg-honey/5 transition-colors"
+                >
+                  Модерация
+                </Link>
+                <Link
+                  to="/admin/stats"
+                  className="text-xs font-bold uppercase tracking-wide text-gray-300 hover:text-white px-3 py-2 rounded-xl border border-gray-600 hover:border-gray-500 transition-colors"
+                >
+                  Статистика
+                </Link>
+              </div>
+            )}
             <button
               onClick={handleUserButtonClick}
               className="w-10 h-10 rounded-full bg-honey shadow-[0_0_15px_rgba(244,196,48,0.3)] flex items-center justify-center font-bold text-black border-2 border-honey/50 hover:bg-white hover:scale-105 transition-all"
