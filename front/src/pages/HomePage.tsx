@@ -32,6 +32,21 @@ export const HomePage: React.FC<HomePageProps> = ({ searchQuery }) => {
   const canUseServerTagFiltering = Boolean(tagNameToId);
   const shouldUseServer = !activeFilters?.tags?.length || canUseServerTagFiltering;
 
+    useEffect(() => {
+    const saved = localStorage.getItem('selectedGenres');
+    if (!saved || searchParams.get('tags')) return;
+    try {
+      const genres: string[] = JSON.parse(saved);
+      if (genres.length > 0) {
+        setSearchParams(prev => {
+          const next = new URLSearchParams(prev);
+          next.set('tags', genres.join(','));
+          return next;
+        }, { replace: true });
+      }
+    } catch { /* ignore */ }
+  }, []);
+  
   useEffect(() => {
     let alive = true;
     fetchTags()
