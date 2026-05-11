@@ -82,7 +82,7 @@ func (r *MovieRepository) Delete(ctx context.Context, filter *models.Movie) (int
 func (r *MovieRepository) FindWithFilters(ctx context.Context, filter dto.MovieFilterRequest) ([]models.Movie, int64, error) {
 	var movies []models.Movie
 
-	query := r.db.Model(&models.Movie{})
+	query := r.db.WithContext(ctx).Model(&models.Movie{})
 
 	if filter.Title != "" {
 		query = query.Where("title ILIKE ?", "%"+filter.Title+"%")
@@ -103,10 +103,17 @@ func (r *MovieRepository) FindWithFilters(ctx context.Context, filter dto.MovieF
 			Having("COUNT (DISTINCT movie_tag.tag_id) >= ?", len(filter.TagIDs))
 	}
 
+	// Оценки хранятся в таблице `rates` (модель Rate), не `ratings`.
+	// Подзапрос не ломает HAVING по тегам и совпадает с формулой OverallAverage в RateRepository.
 	if filter.MinRating > 0 {
-		query = query.Joins("LEFT JOIN ratings ON ratings.movie_id = movies.id").
-			Group("movies.id").
-			Having("AVG((ratings.plot + ratings.performance + ratings.sfx) / 3) >= ?", filter.MinRating)
+		query = query.Where(
+			`movies.id IN (
+				SELECT movie_id FROM rates
+				GROUP BY movie_id
+				HAVING AVG((plot::float + performance::float + sfx::float) / 3.0) >= ?
+			)`,
+			filter.MinRating,
+		)
 	}
 
 	if filter.Limit > 0 {

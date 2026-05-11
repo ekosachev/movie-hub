@@ -62,16 +62,16 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onApply, onReset, valu
 
   const ratingOptions = ['Все', 'От 7+', 'От 8+', 'От 9+'];
 
-  const currentYear = new Date().getFullYear();
-  const [yearFrom, setYearFrom] = useState<number | string>(value?.yearFrom ?? currentYear - 5);
-  const [yearTo, setYearTo] = useState<number | string>(value?.yearTo ?? currentYear);
+  // Пустые годы по умолчанию — иначе «Применить» только с рейтингом отправлял бы лишний диапазон дат.
+  const [yearFrom, setYearFrom] = useState<number | string>(value?.yearFrom ?? '');
+  const [yearTo, setYearTo] = useState<number | string>(value?.yearTo ?? '');
 
   React.useEffect(() => {
     if (!value) {
       setSelectedTags([]);
       setSelectedRating('Все');
-      setYearFrom(currentYear - 5);
-      setYearTo(currentYear);
+      setYearFrom('');
+      setYearTo('');
       return;
     }
 
@@ -79,13 +79,13 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onApply, onReset, valu
     setSelectedRating(value.rating);
     setYearFrom(value.yearFrom);
     setYearTo(value.yearTo);
-  }, [value, currentYear]);
+  }, [value]);
 
   const resetFilters = () => {
     setSelectedTags([]);
     setSelectedRating('Все');
-    setYearFrom(currentYear - 5);
-    setYearTo(currentYear);
+    setYearFrom('');
+    setYearTo('');
     if (onReset) onReset();
   };
 
