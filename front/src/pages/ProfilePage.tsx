@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { mockMovies } from '../mockData';
+import { fetchMovieById, type Movie } from '../api/movieSearch';
 import { MovieCard } from '../components/MovieCard';
 import { CreateCollectionModal, NewCollectionData } from '../components/CreateCollectionModal';
 import { usePlaylists } from '../playlists/usePlaylists';
@@ -22,6 +22,29 @@ export const ProfilePage: React.FC = () => {
   const [editTitle, setEditTitle] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editIsPublic, setEditIsPublic] = useState(false);
+  const [listMovies, setListMovies] = useState<Record<string, Movie[]>>({
+    favorites: [], watched: [], watchlist: [],
+  });
+
+  const lists = state.lists;
+  const collections = state.collections;
+
+  useEffect(() => {
+    const allIds = [...new Set([...lists.favorites, ...lists.watched, ...lists.watchlist])];
+    if (!allIds.length) return;
+    let alive = true;
+    Promise.all(allIds.map(id => fetchMovieById(id))).then(results => {
+      if (!alive) return;
+      const byId: Record<number, Movie> = {};
+      for (const m of results) if (m) byId[m.id] = m;
+      setListMovies({
+        favorites: lists.favorites.map(id => byId[id]).filter((m): m is Movie => !!m),
+        watched: lists.watched.map(id => byId[id]).filter((m): m is Movie => !!m),
+        watchlist: lists.watchlist.map(id => byId[id]).filter((m): m is Movie => !!m),
+      });
+    });
+    return () => { alive = false; };
+  }, [lists.favorites, lists.watched, lists.watchlist]);
 
   if (!user) return null;
 
@@ -37,22 +60,10 @@ export const ProfilePage: React.FC = () => {
 
   const canManageMovies = hasPermission('update_movies');
 
-  const lists = state.lists;
-  const collections = state.collections;
-
-  // Функция для получения объектов фильмов по массиву их ID
-  const getMoviesByIds = (ids: number[]) => {
-    return mockMovies.filter(movie => ids.includes(movie.id));
-  };
-
-  // Получаем фильмы для выбранной системной вкладки (если это не коллекции и не контент)
-  const renderMoviesGrid = (movieIds: number[]) => {
-    const movies = getMoviesByIds(movieIds);
-    
+  const renderMoviesGrid = (movies: Movie[]) => {
     if (movies.length === 0) {
       return <div className="text-gray-500 font-medium py-10 text-center w-full">В этом списке пока нет фильмов 🍿</div>;
     }
-
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {movies.map(movie => (
@@ -168,9 +179,9 @@ export const ProfilePage: React.FC = () => {
 
         {/* Область рендера выбранной вкладки */}
         <div className="bg-card rounded-2xl p-6 shadow-lg border border-gray-700/30 min-h-[500px]">
-          {activeTab === 'favorites' && renderMoviesGrid(lists.favorites)}
-          {activeTab === 'watched' && renderMoviesGrid(lists.watched)}
-          {activeTab === 'watchlist' && renderMoviesGrid(lists.watchlist)}
+          {activeTab === 'favorites' && renderMoviesGrid(listMovies.favorites)}
+          {activeTab === 'watched' && renderMoviesGrid(listMovies.watched)}
+          {activeTab === 'watchlist' && renderMoviesGrid(listMovies.watchlist)}
           
           {activeTab === 'collections' && (
             <div className="flex flex-col gap-4">

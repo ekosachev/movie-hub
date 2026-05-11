@@ -12,12 +12,14 @@ type CreateMovieRequest struct {
 }
 
 type MovieResponse struct {
-	ID          uint          `json:"id"`
-	Title       string        `json:"title"`
-	Description string        `json:"description"`
-	ReleaseDate string        `json:"release_date"`
-	Tags        []TagResponse `json:"tags"`
-	PosterPath  string        `json:"poster_path" binding:"omitempty"`
+	ID            uint                 `json:"id"`
+	Title         string               `json:"title"`
+	Description   string               `json:"description"`
+	ReleaseDate   string               `json:"release_date"`
+	Tags          []TagResponse        `json:"tags"`
+	PosterPath    string               `json:"poster_path" binding:"omitempty"`
+	Cast          []MovieActorResponse `json:"cast"`
+	AverageRaging float64              `json:"average_rating" binding:"omitempty"`
 }
 
 type UpdateMovieRequest struct {
@@ -35,4 +37,11 @@ type MovieFilterRequest struct {
 	MinRating float64    `form:"min_rating"`
 	Limit     uint       `form:"limit"`
 	Offset    uint       `form:"offset"`
+}
+
+type MovieActorResponse struct {
+	ID       uint   `json:"id"`
+	Name     string `json:"name"`
+	PhotoUrl string `json:"photo_url"`
+	Role     string `json:"role"`
 }

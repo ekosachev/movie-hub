@@ -25,17 +25,15 @@ func (r *CommentRepository) Query(ctx context.Context, filter *models.Comment) (
 }
 
 func (r *CommentRepository) GetByID(ctx context.Context, id uint) (*models.Comment, error) {
-	comments, err := r.Query(ctx, &models.Comment{Model: gorm.Model{ID: id}})
-
+	var comment models.Comment
+	err := r.db.WithContext(ctx).Preload("User").Preload("Reactions").First(&comment, id).Error
 	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
 		return nil, err
 	}
-
-	if len(comments) == 0 {
-		return nil, nil
-	}
-
-	return &comments[0], nil
+	return &comment, nil
 }
 
 func (r *CommentRepository) Update(ctx context.Context, filter *models.Comment, obj models.Comment) (int, error) {
@@ -47,14 +45,58 @@ func (r *CommentRepository) Delete(ctx context.Context, filter *models.Comment) 
 }
 
 func (r *CommentRepository) GetByMovieID(movieID uint) ([]dto.CommentResponse, error) {
+	var comments []models.Comment
+	err := r.db.Preload("User").Preload("Reactions").
+		Where("movie_id = ?", movieID).Where("status = ?", "approved").
+		Find(&comments).Error
+
+	if err != nil {
+		return nil, err
+	}
 	var results []dto.CommentResponse
+	for _, c := range comments {
+		var reactions []dto.ReactionResponse
+		for _, rx := range c.Reactions {
+			reactions = append(reactions, dto.ReactionResponse{
+				ID:         rx.ID,
+				UserID:     rx.UserID,
+				IsPositive: rx.IsPositive,
+			})
+		}
+		if reactions == nil {
+			reactions = []dto.ReactionResponse{}
+		}
+		results = append(results, dto.CommentResponse{
+			ID:              c.ID,
+			Content:         c.Content,
+			ParentCommentID: c.ParentCommentID,
+			UserID:          c.UserID,
+			MovieID:         c.MovieID,
+			Username:        c.User.Username,
+			Reactions:       reactions,
+		})
+	}
 
-	err := r.db.Table("comments").
-		Select("comments.id, comments.content, comments.created_at, users.id as user_id, users.username as username").
-		Joins("join users on users.id = comments.user_id").
-		Where("comments.movie_id = ?", movieID).
-		Scan(&results).
-		Error
+	return results, nil
+}
 
-	return results, err
+func (r *CommentRepository) GetLatestForAdmin(ctx context.Context, limit, offset int) ([]models.Comment, int64, error) {
+	var comments []models.Comment
+	var count int64
+	if err := r.db.WithContext(ctx).Model(&models.Comment{}).Count(&count).Error; err != nil {
+		return nil, 0, err
+	}
+	err := r.db.WithContext(ctx).
+		Order("created_at DESC").
+		Limit(limit).
+		Offset(offset).
+		Find(&comments).Error
+
+	return comments, count, err
+}
+func (r *CommentRepository) UpdateStatus(ctx context.Context, id uint, status string) error {
+	return r.db.WithContext(ctx).
+		Model(&models.Comment{}).
+		Where("id = ?", id).
+		Update("status", status).Error
 }

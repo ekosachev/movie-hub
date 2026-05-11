@@ -32,6 +32,7 @@ func (h *RoleHandler) RegisterRoutes(router *gin.RouterGroup) {
 
 		protectedGroup := group.Group("/").Use(middleware.AuthMiddleware()).Use(middleware.PermissionMiddleware("update_roles"))
 		{
+			protectedGroup.GET("", h.GetAll)
 			protectedGroup.POST("/", h.Create)
 			protectedGroup.PATCH("/:id", h.Update)
 			protectedGroup.DELETE("/:id", h.Delete)
@@ -49,11 +50,14 @@ func (h *RoleHandler) Create(c *gin.Context) {
 	}
 
 	role := &models.Role{
-		Name:            req.Name,
-		CanDeleteUsers:  req.CanDeleteUsers,
-		CanUpdateMovies: req.CanUpdateMovies,
-		CanUpdateRoles:  req.CanUpdateRoles,
-		CanUpdateTags:   req.CanUpdateTags,
+		Name:                 req.Name,
+		CanDeleteUsers:       req.CanDeleteUsers,
+		CanUpdateMovies:      req.CanUpdateMovies,
+		CanUpdateRoles:       req.CanUpdateRoles,
+		CanUpdateTags:        req.CanUpdateTags,
+		CanUpdateCollections: req.CanUpdateCollections,
+		CanManageCast:        req.CanManageCast,
+		CanManageComments:    req.CanManageComments,
 	}
 
 	if err := h.Service.Create(c, role); err != nil {
@@ -63,12 +67,15 @@ func (h *RoleHandler) Create(c *gin.Context) {
 	}
 
 	resp := dto.RoleResponse{
-		ID:              role.ID,
-		Name:            role.Name,
-		CanDeleteUsers:  role.CanDeleteUsers,
-		CanUpdateMovies: role.CanUpdateMovies,
-		CanUpdateRoles:  role.CanUpdateRoles,
-		CanUpdateTags:   role.CanUpdateTags,
+		ID:                   role.ID,
+		Name:                 role.Name,
+		CanDeleteUsers:       role.CanDeleteUsers,
+		CanUpdateMovies:      role.CanUpdateMovies,
+		CanUpdateRoles:       role.CanUpdateRoles,
+		CanUpdateTags:        role.CanUpdateTags,
+		CanUpdateCollections: role.CanUpdateCollections,
+		CanManageCast:        role.CanManageCast,
+		CanManageComments:    role.CanManageComments,
 	}
 
 	h.Logger.Info("Role created successfully", slog.Uint64("role_id", uint64(role.ID)))
@@ -99,12 +106,15 @@ func (h *RoleHandler) GetByID(c *gin.Context) {
 	}
 
 	resp := dto.RoleResponse{
-		ID:              role.ID,
-		Name:            role.Name,
-		CanDeleteUsers:  role.CanDeleteUsers,
-		CanUpdateMovies: role.CanUpdateMovies,
-		CanUpdateRoles:  role.CanUpdateRoles,
-		CanUpdateTags:   role.CanUpdateTags,
+		ID:                   role.ID,
+		Name:                 role.Name,
+		CanDeleteUsers:       role.CanDeleteUsers,
+		CanUpdateMovies:      role.CanUpdateMovies,
+		CanUpdateRoles:       role.CanUpdateRoles,
+		CanUpdateTags:        role.CanUpdateTags,
+		CanUpdateCollections: role.CanUpdateCollections,
+		CanManageCast:        role.CanManageCast,
+		CanManageComments:    role.CanManageComments,
 	}
 
 	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: resp})
@@ -156,6 +166,15 @@ func (h *RoleHandler) Update(c *gin.Context) {
 	if req.CanUpdateTags != nil {
 		role.CanUpdateTags = *req.CanUpdateTags
 	}
+	if req.CanUpdateCollections != nil {
+		role.CanUpdateCollections = *req.CanUpdateCollections
+	}
+	if req.CanManageCast != nil {
+		role.CanManageCast = *req.CanManageCast
+	}
+	if req.CanManageComments != nil {
+		role.CanManageComments = *req.CanManageComments
+	}
 
 	if _, err := h.Service.Update(c, &models.Role{Model: gorm.Model{ID: uint(id)}}, *role); err != nil {
 		h.Logger.Error("Failed to update role", slog.Int("id", id), slog.String("error", err.Error()))
@@ -164,12 +183,15 @@ func (h *RoleHandler) Update(c *gin.Context) {
 	}
 
 	resp := dto.RoleResponse{
-		ID:              role.ID,
-		Name:            role.Name,
-		CanDeleteUsers:  role.CanDeleteUsers,
-		CanUpdateMovies: role.CanUpdateMovies,
-		CanUpdateRoles:  role.CanUpdateRoles,
-		CanUpdateTags:   role.CanUpdateTags,
+		ID:                   role.ID,
+		Name:                 role.Name,
+		CanDeleteUsers:       role.CanDeleteUsers,
+		CanUpdateMovies:      role.CanUpdateMovies,
+		CanUpdateRoles:       role.CanUpdateRoles,
+		CanUpdateTags:        role.CanUpdateTags,
+		CanUpdateCollections: role.CanManageCast,
+		CanManageCast:        role.CanManageCast,
+		CanManageComments:    role.CanManageComments,
 	}
 
 	h.Logger.Info("Role updated", slog.Uint64("role_id", uint64(role.ID)))
@@ -192,4 +214,32 @@ func (h *RoleHandler) Delete(c *gin.Context) {
 
 	h.Logger.Info("Role deleted", slog.Int("role", id))
 	c.JSON(http.StatusOK, dto.APIResponse{Success: true})
+}
+
+func (h *RoleHandler) GetAll(c *gin.Context) {
+	roles, err := h.Service.GetAll(c)
+
+	if err != nil {
+		sendError(c, http.StatusInternalServerError, "Internal server error")
+		h.Logger.Error("Failed to get roles", slog.String("error", err.Error()))
+		return
+	}
+
+	resp := make([]dto.RoleResponse, len(roles))
+
+	for i, r := range roles {
+		resp[i] = dto.RoleResponse{
+			ID:                   r.ID,
+			Name:                 r.Name,
+			CanDeleteUsers:       r.CanDeleteUsers,
+			CanUpdateMovies:      r.CanUpdateMovies,
+			CanUpdateRoles:       r.CanUpdateRoles,
+			CanUpdateTags:        r.CanUpdateTags,
+			CanUpdateCollections: r.CanUpdateCollections,
+			CanManageCast:        r.CanManageCast,
+			CanManageComments:    r.CanManageComments,
+		}
+	}
+
+	c.JSON(http.StatusOK, dto.APIResponse{Success: true, Data: resp})
 }

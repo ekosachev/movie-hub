@@ -1,15 +1,19 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Routes, Route, Outlet, useSearchParams } from 'react-router-dom';
+import soundFile from '../sound.mp3';
 import { HomePage } from './pages/HomePage';
 import { ProfilePage } from './pages/ProfilePage';
 import { CollectionPage } from './pages/CollectionPage';
 import { AuthPage } from './pages/AuthPage';
 import { OnboardingPage } from './pages/OnboardingPage';
+import { AdminStatsPage } from './pages/AdminStatsPage';
+import { AdminModerationPage } from './pages/AdminModerationPage';
 import { MovieCreatePage } from './pages/MovieCreatePage';
 import { Header } from './components/Header';
 import { useDebouncedValue } from './utils/useDebouncedValue';
 import { RequireAuth } from './routing/RequireAuth';
 import { RequirePermission } from './routing/RequirePermission';
+import { RequireAnyPermission } from './routing/RequireAnyPermission';
 
 const GlobalLayout: React.FC<{
   searchQuery: string;
@@ -25,6 +29,25 @@ const GlobalLayout: React.FC<{
 
 const App: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    let clicks = 0;
+    const audio = new Audio(soundFile);
+
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('button, a, input, textarea, select, [role="button"]')) return;
+      clicks++;
+      if (clicks >= 10) {
+        clicks = 0;
+        audio.currentTime = 0;
+        audio.play();
+      }
+    };
+
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, []);
   const qFromUrl = searchParams.get('q') ?? '';
 
   const [searchDraft, setSearchDraft] = useState(qFromUrl);
@@ -67,6 +90,22 @@ const App: React.FC = () => {
             <RequireAuth>
               <CollectionPage />
             </RequireAuth>
+          }
+        />
+        <Route
+          path="/admin/stats"
+          element={
+            <RequireAnyPermission permissions={['delete_users', 'manage_comments']}>
+              <AdminStatsPage />
+            </RequireAnyPermission>
+          }
+        />
+        <Route
+          path="/admin/moderation"
+          element={
+            <RequireAnyPermission permissions={['delete_users', 'manage_comments']}>
+              <AdminModerationPage />
+            </RequireAnyPermission>
           }
         />
         <Route

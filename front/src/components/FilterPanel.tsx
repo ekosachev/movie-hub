@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { mockTags } from '../mockData';
 import { useAuth } from '../context/AuthContext';
-import { createTag, deleteTag } from '../api/movies';
+import { createTag, deleteTag, fetchTags } from '../api/movies';
 
 export interface FilterSettings {
   tags: string[];
@@ -26,7 +25,11 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onApply, onReset, valu
   const [newTagName, setNewTagName] = useState('');
   const [tagLoading, setTagLoading] = useState(false);
   const [tagError, setTagError] = useState('');
-  const [createdTags, setCreatedTags] = useState<{ id: number; name: string }[]>([]);
+  const [tags, setTags] = useState<{ id: number; name: string }[]>([]);
+
+  React.useEffect(() => {
+    fetchTags().then(setTags).catch(() => {});
+  }, []);
 
   const handleCreateTag = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,7 +38,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onApply, onReset, valu
     setTagError('');
     try {
       const tag = await createTag(newTagName.trim(), user.token);
-      setCreatedTags(prev => [...prev, tag]);
+      setTags(prev => [...prev, tag]);
       setNewTagName('');
     } catch (err) {
       setTagError(err instanceof Error ? err.message : 'Ошибка');
@@ -44,11 +47,12 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onApply, onReset, valu
     }
   };
 
-  const handleDeleteTag = async (tagId: number) => {
+  const handleDeleteTag = async (tagId: number, tagName: string) => {
     if (!user?.token) return;
     try {
       await deleteTag(tagId, user.token);
-      setCreatedTags(prev => prev.filter(t => t.id !== tagId));
+      setTags(prev => prev.filter(t => t.id !== tagId));
+      setSelectedTags(prev => prev.filter(t => t !== tagName));
     } catch (err) {
       console.error(err);
     }
@@ -96,14 +100,13 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onApply, onReset, valu
       <div>
         <h3 className="font-bold mb-4 uppercase tracking-wider text-sm text-gray-400">Теги</h3>
 
-        {/* Контейнер со скроллом и эффектом исчезания (градиентной маской) */}
         <div className="relative">
           <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto pr-1 pb-8 [mask-image:linear-gradient(to_bottom,black_75%,transparent_100%)] scrollbar-hide">
-            {mockTags.map(tag => {
-              const isChecked = selectedTags.includes(tag);
+            {tags.map(tag => {
+              const isChecked = selectedTags.includes(tag.name);
               return (
                 <label
-                  key={tag}
+                  key={tag.id}
                   className={`
                     cursor-pointer px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 border select-none
                     ${isChecked
@@ -116,12 +119,15 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onApply, onReset, valu
                     type="checkbox"
                     className="sr-only"
                     checked={isChecked}
-                    onChange={() => toggleTag(tag)}
+                    onChange={() => toggleTag(tag.name)}
                   />
-                  {tag}
+                  {tag.name}
                 </label>
               );
             })}
+            {tags.length === 0 && (
+              <p className="text-gray-500 text-sm">Теги не найдены</p>
+            )}
           </div>
         </div>
 
@@ -165,7 +171,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onApply, onReset, valu
 
       {/* Секция: Рейтинг */}
       <div>
-        <h3 className="font-bold mb-4 uppercase tracking-wider text-sm text-gray-400">Рейтинг (IMDB)</h3>
+        <h3 className="font-bold mb-4 uppercase tracking-wider text-sm text-gray-400">Рейтинг</h3>
         <div className="flex flex-wrap gap-2">
           {ratingOptions.map(opt => (
             <button
@@ -204,29 +210,27 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onApply, onReset, valu
               </button>
             </form>
             {tagError && <p className="text-red-400 text-xs mb-2">{tagError}</p>}
-            {createdTags.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {createdTags.map(tag => (
-                  <span key={tag.id} className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm bg-accent/10 border border-accent/30 text-accent">
-                    {tag.name}
-                    <button
-                      onClick={() => handleDeleteTag(tag.id)}
-                      className="ml-1 hover:text-red-400 transition-colors"
-                    >
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
+            <div className="flex flex-wrap gap-2">
+              {tags.map(tag => (
+                <span key={tag.id} className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm bg-accent/10 border border-accent/30 text-accent">
+                  {tag.name}
+                  <button
+                    onClick={() => handleDeleteTag(tag.id, tag.name)}
+                    className="ml-1 hover:text-red-400 transition-colors"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </span>
+              ))}
+            </div>
           </div>
         </>
       )}
 
       <div className="pt-4 flex flex-col gap-3">
-        <button 
+        <button
           onClick={() => onApply && onApply({ tags: selectedTags, rating: selectedRating, yearFrom, yearTo })}
           className="w-full bg-accent hover:opacity-90 text-[#181A1C] font-extrabold uppercase tracking-wide py-3 rounded-xl transition-all duration-300 shadow-[0_0_20px_rgba(168,224,95,0.2)] hover:shadow-[0_0_25px_rgba(168,224,95,0.4)] hover:-translate-y-1"
         >
@@ -236,7 +240,6 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onApply, onReset, valu
           Сбросить фильтры
         </button>
       </div>
-
     </div>
   );
 };

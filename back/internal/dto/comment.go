@@ -11,10 +11,15 @@ type UpdateCommentRequest struct {
 }
 
 type CommentResponse struct {
-	ID              uint   `json:"id"`
-	Content         string `json:"content"`
-	ParentCommentID *int   `json:"parent_comment_id,omitempty"`
-	UserID          int    `json:"user_id"`
-	MovieID         int    `json:"movie_id"`
-	Username        string `json:"username"`
+	ID              uint               `json:"id"`
+	Content         string             `json:"content"`
+	ParentCommentID *int               `json:"parent_comment_id,omitempty"`
+	UserID          int                `json:"user_id"`
+	MovieID         int                `json:"movie_id"`
+	Username        string             `json:"username"`
+	Reactions       []ReactionResponse `json:"reactions"`
+}
+
+type UpdateCommentStatusRequest struct {
+	Status string `json:"status" binding:"required,oneof=pending approved rejected"`
 }

@@ -13,6 +13,7 @@ type Comment struct {
 
 	UserID  int
 	MovieID int
-	User    User  `gorm:"foreignKey:UserID"`
-	Movie   Movie `gorm:"foreignKey:MovieID"`
+	User    User   `gorm:"foreignKey:UserID"`
+	Movie   Movie  `gorm:"foreignKey:MovieID"`
+	Status  string `gorm:"type:varchar(20);default:'pending'"`
 }
